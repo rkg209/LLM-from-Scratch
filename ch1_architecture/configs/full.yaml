@@ -1,0 +1,15 @@
+# GPU profile — launched manually on the GPU box, never from a session (CLAUDE.md #1).
+# The GPU-budget hook blocks any session command that targets this file.
+vocab_size: 50257
+d_model: 512
+n_heads: 8
+n_layers: 6
+seq_len: 256
+batch_size: 32
+max_steps: 5000
+learning_rate: 0.0003
+clip_grad_norm: 1.0
+log_every: 10
+seed: 42
+device: cuda
+run_name: ch1-full

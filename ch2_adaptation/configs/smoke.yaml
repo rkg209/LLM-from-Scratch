@@ -1,0 +1,19 @@
+# CPU smoke profile — proves the fine-tune code path, on CPU, in seconds (NFR-1).
+# Not a small training run: 5 steps at lora_r=4 teaches the model nothing, and is not
+# meant to. It is there to catch a broken collator before an hour of GPU time is spent.
+model_tag: Qwen/Qwen2.5-Coder-1.5B-Instruct
+lora_r: 4
+lora_alpha: 8
+lora_dropout: 0.05
+target_modules:
+  - q_proj
+  - v_proj
+  - k_proj
+  - o_proj
+max_steps: 5
+batch_size: 1
+learning_rate: 0.0002
+use_4bit: false # bitsandbytes needs CUDA; the smoke path is fp32 on CPU
+seed: 42
+output_dir: outputs/adapter-smoke
+wandb_project: ch2-adaptation

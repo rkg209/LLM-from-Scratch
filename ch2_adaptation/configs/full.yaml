@@ -1,0 +1,19 @@
+# GPU profile — launched manually on Colab / Kaggle / the cluster (CLAUDE.md #1).
+# The GPU-budget hook blocks any session command that targets this file. That is correct:
+# a full run here costs real free-tier GPU budget and takes hours.
+model_tag: Qwen/Qwen2.5-Coder-1.5B-Instruct
+lora_r: 16
+lora_alpha: 32
+lora_dropout: 0.05
+target_modules:
+  - q_proj
+  - v_proj
+  - k_proj
+  - o_proj
+max_steps: 1000
+batch_size: 4
+learning_rate: 0.0002
+use_4bit: true # NF4 + double-quant + bf16 compute
+seed: 42
+output_dir: outputs/adapter
+wandb_project: ch2-adaptation

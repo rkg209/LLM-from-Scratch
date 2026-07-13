@@ -1,0 +1,9 @@
+# CPU smoke profile — runs in CI with no real model, against the committed test fixture.
+model_path: ch3_operation/tests/fixtures/tiny.gguf
+n_ctx: 512
+n_threads: 2
+max_tokens: 128
+temperature: 0.0
+host: 127.0.0.1
+port: 8000
+metrics_window: 100

@@ -1,0 +1,76 @@
+[project]
+name = "llm-engineering-architecture-to-edge"
+version = "0.1.0"
+description = "From-scratch transformer, QLoRA fine-tune, and CPU-edge serving — one narrative, three packages."
+readme = "README.md"
+requires-python = ">=3.12,<3.13"
+
+# Base dependencies stay light on purpose: the shared eval harness and every config
+# loader must import without torch, so CI and the eval tests run in seconds.
+dependencies = [
+    "pyyaml>=6.0",
+    "jsonschema>=4.21",
+]
+
+[project.optional-dependencies]
+ch1 = [
+    "torch>=2.2",
+    "wandb>=0.16",
+    "matplotlib>=3.8",
+]
+ch2 = [
+    "torch>=2.2",
+    "transformers>=4.44",
+    "peft>=0.12",
+    "trl>=0.9",
+    "datasets>=2.20",
+    "bitsandbytes>=0.43; platform_system == 'Linux'",
+    "pydantic>=2.7",
+    "wandb>=0.16",
+]
+ch3 = [
+    "fastapi>=0.111",
+    "uvicorn>=0.30",
+    "llama-cpp-python>=0.2.80",
+    "prometheus-client>=0.20",
+    "pydantic>=2.7",
+]
+dev = [
+    "ruff>=0.5",
+    "black>=24.4",
+    "pytest>=8.2",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = [
+    "ch1_architecture/src/ch1_architecture",
+    "ch2_adaptation/src/ch2_adaptation",
+    "ch3_operation/src/ch3_operation",
+    "eval",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.black]
+line-length = 100
+target-version = ["py312"]
+
+[tool.pytest.ini_options]
+# Test module basenames must stay unique across packages (test_gpt_config, not four
+# test_config files): pytest's importers cannot tell same-named test modules apart in a
+# tests/ directory with no __init__.py.
+testpaths = [
+    "eval/tests",
+    "ch1_architecture/tests",
+    "ch2_adaptation/tests",
+    "ch3_operation/tests",
+]

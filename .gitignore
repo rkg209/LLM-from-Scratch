@@ -1,0 +1,38 @@
+# --- Model weights & artifacts (never committed; live on HF Hub or locally) ---
+outputs/
+*.pt
+*.pth
+*.bin
+*.safetensors
+*.gguf
+!ch3_operation/tests/fixtures/tiny.gguf
+
+# --- Datasets (generated; provenance is committed, data is not) ---
+ch2_adaptation/data/*.jsonl
+ch2_adaptation/data/raw/
+
+# --- Secrets ---
+.env
+.env.*
+!.env.example
+
+# --- Experiment tracking ---
+wandb/
+
+# --- Python ---
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+dist/
+build/
+
+# --- OS / editor ---
+.DS_Store
+.idea/
+.vscode/
+
+# --- Claude Code local overrides ---
+.claude/settings.local.json

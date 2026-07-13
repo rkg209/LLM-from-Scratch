@@ -1,0 +1,15 @@
+# CPU smoke profile — must finish in seconds (NFR-1). This is the config Claude runs.
+# It is a correctness check on the code path, not a small training run.
+vocab_size: 256
+d_model: 64
+n_heads: 2
+n_layers: 2
+seq_len: 64
+batch_size: 4
+max_steps: 50
+learning_rate: 0.001
+clip_grad_norm: 1.0
+log_every: 10
+seed: 42
+device: cpu
+run_name: ch1-smoke

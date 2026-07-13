@@ -18,6 +18,7 @@ The chapters have no runtime dependency on each other; they communicate only thr
 4. **Structured output is a contract.** Every Ch2/Ch3 model output must validate against `eval/schema.json`. The schema is never relaxed to make a model look better.
 5. **Seeded, config-driven, no magic numbers.** Every hyperparameter comes from a YAML config. Every entrypoint takes `--config`.
 6. **No secrets, weights, datasets, or `.gguf` files in git.** The commit-hygiene hook enforces this.
+7. **NEVER put a `Co-Authored-By:` trailer in a commit message.** No `Co-Authored-By: Claude ...`, no co-author trailer of any kind. It breaks pushing to GitHub for this repo. Commit messages end at the last line of the body.
 
 ## Build & test
 
@@ -42,6 +43,20 @@ Specs live in `specs/`; their state is tracked in `specs/STATUS.md`.
 ```
 
 **Never implement without an accepted spec and plan.** One task = one commit. For ML specs, the full run happens outside the session on the GPU box; its numbers come back via `/eval`.
+
+## `progress_report.md` — append after every meaningful change
+
+`progress_report.md` is the project's development log. **Append an entry to it after every meaningful change** — a completed task, a resolved bug, a design decision, a reversed decision. Do this as part of the work, not as a separate chore at the end; a log written from memory a week later is fiction.
+
+Each entry answers three questions:
+
+- **What** changed — the concrete change.
+- **Why** — the reasoning. This is the part that exists nowhere else: git shows what changed, the code shows what it is, but neither records why it was done this way and not the obvious other way.
+- **How** — the approach taken.
+
+And, whenever something went wrong: **the problem, what was tried that did not work, and what finally did.** The failed attempts are the most valuable content in the file — record them, do not tidy them away.
+
+Rules: newest entries go at the **bottom**; **never rewrite an earlier entry.** If a past decision turns out to be wrong, say so in a *new* entry. A log that has been cleaned up has stopped being evidence.
 
 ## Conventions enforced in review
 

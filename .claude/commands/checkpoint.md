@@ -15,8 +15,12 @@ Close out the work in the working tree.
 
 3. **Commit.** One task, one commit. Message: what changed and why, referencing the spec and task (`A1 T2: hand-rolled BPE merge loop`). If nothing is staged, stage the task's files deliberately — never `git add -A` on a dirty tree you have not read.
 
+   **No `Co-Authored-By:` trailer — ever** (CLAUDE.md #7). It breaks pushing to GitHub for this repo. The message ends at the last line of the body; the commit-hygiene hook blocks it if one slips in.
+
 4. **Update `specs/STATUS.md`.** Tick the task in the spec file. Move the spec's state on only when *every* task in it is done and its acceptance criteria are all met — `building → done`. Record the W&B run ID if this task produced a run.
 
-5. **Report.** State plainly what was committed, what state the spec is now in, and what the next task is.
+5. **Append to `progress_report.md`.** An entry for this change: **what** changed, **why** (the reasoning, which lives nowhere else), and **how**. If anything went wrong on the way — a test that failed for a surprising reason, an approach abandoned, a fix that made it worse first — record that too, including what did not work. Those are the entries worth having. Newest at the bottom; never edit an earlier entry.
+
+6. **Report.** State plainly what was committed, what state the spec is now in, and what the next task is.
 
 If the user named a spec (`$1`), scope steps 3–4 to it.

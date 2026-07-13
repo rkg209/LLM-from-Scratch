@@ -4,6 +4,9 @@
 Weights, datasets, GGUF files and .env are permanently expensive to remove once pushed
 (CLAUDE.md #6), and a modified holdout must never be committed at all (#3). This checks
 what is actually staged, not what the command line says.
+
+It also blocks a `Co-Authored-By:` trailer in the message (#7) — that one breaks pushing
+to GitHub for this repo, and by the time the push fails the commit already exists.
 """
 
 from __future__ import annotations
@@ -21,6 +24,7 @@ MAX_BYTES = 5 * 1024 * 1024
 
 FORBIDDEN_SUFFIXES = (".pt", ".pth", ".bin", ".safetensors", ".gguf")
 GIT_COMMIT = re.compile(r"\bgit\b[^|;&]*\bcommit\b")
+CO_AUTHORED_BY = re.compile(r"co-authored-by\s*:", re.IGNORECASE)
 
 
 def _staged_files() -> list[str]:
@@ -58,6 +62,15 @@ def check(payload: dict[str, Any]) -> None:
     command = payload.get("tool_input", {}).get("command", "")
     if not GIT_COMMIT.search(command):
         allow()
+
+    if CO_AUTHORED_BY.search(command):
+        deny(
+            "PreToolUse",
+            "Commit hygiene: this commit message carries a `Co-Authored-By:` trailer, which "
+            "breaks pushing this repo to GitHub (CLAUDE.md non-negotiable #7).\n"
+            "Re-run the commit with the trailer removed. The message ends at the last line "
+            "of the body — no co-author trailer of any kind, for Claude or anyone else.",
+        )
 
     violations = [
         f"  - {path} — {reason}"

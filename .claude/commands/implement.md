@@ -15,6 +15,7 @@ Implement task **$2** of spec **$1** — that task and nothing else.
    ```
 6. Dispatch the `code-reviewer` subagent on the diff. Fix what it finds, or say why you disagree.
 7. Tick the task's checkbox in the spec.
+8. If anything went wrong on the way — a failure with a surprising cause, an approach you abandoned, a fix that made things worse before the right one — **write it down now, while you still remember it**, either in `progress_report.md` or in your handoff to `/checkpoint`. A week from now the only thing left will be the working code, and the reasoning that produced it will be gone.
 
 **Scope discipline is the point of this command.** If you notice something else that needs doing — a bug in an earlier task, a missing config key, a refactor that would help — do not fix it here. Note it, finish this task, and raise it. Drift is how one commit becomes six.
 

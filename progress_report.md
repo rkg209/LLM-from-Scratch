@@ -432,3 +432,59 @@ fp32), but exactly the kind of config-drift trap the project's "config-driven, n
 rule exists to prevent: if a baseline config ever flips `use_4bit`, the recorded dtype in the
 published `baselines.json` would silently lie about what actually ran. Fixed to derive it:
 `"int4" if cfg.use_4bit else "float32"`.
+
+---
+
+### Entry — C1 T5: `model.py` + `frontier.py`, `baseline.py::main` wired, smoke run green
+
+**What.** `ch2_adaptation/model.py::make_hf_generator` (loads the base model once, returns a
+`prompts -> raw responses` closure) and `ch2_adaptation/frontier.py` (`GeminiClient` — native
+JSON mode via `response_mime_type`/`response_schema`, `StubFrontierClient`, `estimate_cost_usd`).
+Both keep `torch`/`transformers`/`google.genai` imports function-local. `baseline.py::main()` now
+wires the whole pipeline end to end: load config → format zero-/three-shot prompts → score both
+systems → write atomically → log to W&B if enabled. The actual command,
+`uv run python -m ch2_adaptation.baseline --config ch2_adaptation/configs/baseline_smoke.yaml`,
+was run by hand and finishes in **~4 seconds**, well under the 120s NFR-1 budget, writes only to
+gitignored `outputs/baselines-smoke.json`, and leaves `eval/results/` untouched.
+
+**Why.** This is the task that turns the spec's five prior tasks into something that actually
+runs — everything before this was scaffolding around a pipeline nobody had executed yet. Running
+it for real, not just unit-testing its pieces, is what surfaced the two problems below; neither
+would have been caught by a green test suite alone.
+
+**Problem 1 — the guessed `SMOKE_MODEL_TAG` doesn't exist.** `hf-internal-testing/tiny-random-Qwen2ForCausalLM`
+(written into spec/config from a plausible-sounding naming convention, not verified against the
+Hub) 401'd as `RepositoryNotFoundError` on first run. Searched the Hub for a real tiny Qwen2 test
+model, found `trl-internal-testing/tiny-Qwen2ForCausalLM-2.5` (a ~2.4M-param model TRL's own test
+suite depends on), and — the lesson from T2 repeating itself — **verified it actually downloads
+and has a chat template before writing it into the config**, rather than trusting the name again.
+
+**Problem 2 — `apply_chat_template(..., return_tensors="pt")` didn't return what `model.generate()`
+expected.** The installed `transformers` version returns a plain tensor by default; the code
+unpacked it as `**encoded` assuming a dict, and hit `KeyError: 'shape'` deep inside
+`model.generate()`. Fixed by passing `return_dict=True` explicitly and reading
+`encoded["input_ids"].shape[-1]` for the prompt-length slice, rather than relying on
+`apply_chat_template`'s default return shape.
+
+**How — the code-review catch (three issues).**
+
+1. Neither `frontier.py` nor `model.py` had a test yet. Added `test_frontier.py` — fully testable
+   without `google-genai` or network (`estimate_cost_usd`'s env-var guard, `StubFrontierClient`,
+   `make_client`'s provider dispatch, and that `GeminiClient.generate` raises before ever touching
+   the network if `GEMINI_API_KEY` is unset) — and a `pytest.importorskip("torch")`-gated
+   `test_model.py` that exercises `make_hf_generator` for real against `SMOKE_MODEL_TAG` whenever
+   the `ch2` extra is installed, and skips cleanly in the base+dev CI environment.
+2. `GeminiClient.generate` computed `cost_usd = estimate_cost_usd(...) if input_tokens else 0.0` —
+   if the API ever returned `usage_metadata=None`, `estimate_cost_usd`'s missing-price
+   `RuntimeError` would never fire, and a misconfigured environment would silently record an
+   indistinguishable-from-honest `$0.00` on a real paid-tier-capable call. Fixed by validating the
+   price env vars unconditionally at the top of `generate()`, before any network call, so a
+   misconfigured environment fails loud regardless of what the API returns.
+3. `main()` had grown to ~51 lines, past the ~40-line convention. Split into `_score_base(cfg,
+   prompts)` / `_score_frontier(cfg, prompts)` helpers, leaving `main()` as orchestration and
+   printing only.
+
+**The lesson worth keeping (a third time).** Every hand-written identifier that names something
+external — a model tag, a package name, a schema key — is a claim, not a fact, until it's actually
+exercised. T2 caught this for ground-truth labels; this entry catches it for a model tag on the
+Hub. The pattern is the same: write the plausible thing, then run it before trusting it.

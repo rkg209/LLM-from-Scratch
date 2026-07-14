@@ -1,0 +1,3 @@
+{"id": "stub-001", "code": "public InputStream open(String path) throws IOException {\n    FileInputStream in = new FileInputStream(path);\n    byte[] data = in.readAllBytes();\n    return new ByteArrayInputStream(data);\n}", "line": 2, "category": "resource-leak", "severity": "major"}
+{"id": "stub-004", "code": "public List<User> findByName(String name) {\n    String sql = \"SELECT * FROM users WHERE name = '\" + name + \"'\";\n    return jdbcTemplate.query(sql, new UserRowMapper());\n}", "line": 2, "category": "sql-injection", "severity": "critical"}
+{"id": "stub-012", "code": "public double average(int total, int count) {\n    return total / count;\n}", "line": 2, "category": "division-by-zero", "severity": "major"}

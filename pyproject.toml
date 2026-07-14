@@ -27,6 +27,7 @@ ch2 = [
     "datasets>=2.20",
     "bitsandbytes>=0.43; platform_system == 'Linux'",
     "wandb>=0.16",
+    "google-genai>=0.3",
 ]
 ch3 = [
     "fastapi>=0.111",

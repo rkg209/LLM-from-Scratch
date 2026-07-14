@@ -4,7 +4,7 @@
 # StubFrontierClient makes no network call, so this needs no GEMINI_API_KEY.
 # Writes to gitignored outputs/baselines-smoke.json, NEVER to eval/results/baselines.json
 # (BaselineConfig.__post_init__ enforces this).
-base_model_tag: hf-internal-testing/tiny-random-Qwen2ForCausalLM
+base_model_tag: trl-internal-testing/tiny-Qwen2ForCausalLM-2.5
 frontier_provider: stub
 frontier_model_tag: stub-frontier
 stub_set_path: eval/stub/stub_eval_smoke.jsonl

@@ -15,7 +15,7 @@ LOCKED_MODEL_TAG = "Qwen/Qwen2.5-Coder-1.5B-Instruct"
 # 40-120s of generation alone on CPU — it cannot honour the under-120s smoke budget (NFR-1).
 # This tiny model proves the code path (load -> prompt -> generate -> parse -> score ->
 # atomic write); the full config produces the real, published number.
-SMOKE_MODEL_TAG = "hf-internal-testing/tiny-random-Qwen2ForCausalLM"
+SMOKE_MODEL_TAG = "trl-internal-testing/tiny-Qwen2ForCausalLM-2.5"
 
 # eval/results/baselines.json is the committed, published number. A smoke run must never
 # overwrite it with output from SMOKE_MODEL_TAG (spec C1, Risk 5).

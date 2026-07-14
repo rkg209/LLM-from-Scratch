@@ -7,6 +7,7 @@ already knows what number they need.
 
 from __future__ import annotations
 
+import argparse
 import hashlib
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -14,8 +15,15 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from ch2_adaptation.config import BaselineConfig
-from eval.harness import DEFAULT_SCHEMA_PATH, EvalResult, score_outputs
+from ch2_adaptation.config import BaselineConfig, load_baseline_config
+from eval.config import seed_everything
+from eval.harness import (
+    DEFAULT_SCHEMA_PATH,
+    EvalResult,
+    load_holdout,
+    score_outputs,
+    write_json_atomic,
+)
 
 # A prompt in, a raw model response out — one call per prompt, in order. `baseline.py::main`
 # wires this to model.make_hf_generator / frontier.make_client; tests drive it with a fake.
@@ -86,3 +94,96 @@ def build_baselines_doc(
             **frontier.to_json(),
         },
     }
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="Measure the base-model and frontier-API baselines on the stub set."
+    )
+    parser.add_argument("--config", type=Path, required=True, help="path to a YAML config")
+    return parser.parse_args()
+
+
+def _log_to_wandb(cfg: BaselineConfig, base: EvalResult, frontier: EvalResult) -> None:
+    if cfg.wandb_mode == "disabled":
+        return
+
+    import wandb
+
+    run = wandb.init(project=cfg.wandb_project, mode=cfg.wandb_mode, config=cfg.__dict__)
+    wandb.log(
+        {
+            "base/schema_validity_rate": base.schema_validity_rate,
+            "base/bug_catch_rate": base.bug_catch_rate,
+            "frontier/schema_validity_rate": frontier.schema_validity_rate,
+            "frontier/bug_catch_rate": frontier.bug_catch_rate,
+        }
+    )
+    run.finish()
+
+
+def _score_base(cfg: BaselineConfig, prompts: list[str]) -> EvalResult:
+    # model.make_hf_generator imports torch/transformers function-locally; importing
+    # ch2_adaptation.model here, not at baseline.py's top level, is what keeps `pytest -q`
+    # green in the base+dev CI env, which never installs the ch2 extra.
+    from ch2_adaptation.model import make_hf_generator
+
+    print(f"[C1] base model: {cfg.base_model_tag} (zero-shot)")
+    return score_system(prompts, make_hf_generator(cfg), cfg.stub_set_path)
+
+
+def _score_frontier(cfg: BaselineConfig, prompts: list[str]) -> tuple[EvalResult, Usage]:
+    # Deferred for the same reason as _score_base, and to avoid a baseline.py <-> frontier.py
+    # import cycle: frontier.py imports Usage from this module at its own top level.
+    from ch2_adaptation.frontier import make_client
+
+    print(
+        f"[C1] frontier: {cfg.frontier_model_tag} ({cfg.n_few_shot}-shot, {cfg.frontier_provider})"
+    )
+    client = make_client(
+        cfg.frontier_provider, cfg.frontier_model_tag, cfg.temperature, cfg.max_new_tokens
+    )
+    usage_holder: list[Usage] = []
+
+    def frontier_generate(batch: list[str]) -> list[str]:
+        outputs, usage = client.generate(batch)
+        usage_holder.append(usage)
+        return outputs
+
+    result = score_system(prompts, frontier_generate, cfg.stub_set_path)
+    return result, usage_holder[0]
+
+
+def main() -> None:
+    from ch2_adaptation.prompts import format_three_shot, format_zero_shot
+
+    args = parse_args()
+    cfg = load_baseline_config(args.config)
+    seed_everything(cfg.seed)
+    print(f"[C1] config loaded: {args.config}")
+
+    stub_records = load_holdout(cfg.stub_set_path)
+    zero_shot_prompts = [format_zero_shot(record["code"]) for record in stub_records]
+    three_shot_prompts = [format_three_shot(record["code"]) for record in stub_records]
+
+    base_result = _score_base(cfg, zero_shot_prompts)
+    frontier_result, usage = _score_frontier(cfg, three_shot_prompts)
+
+    doc = build_baselines_doc(base_result, frontier_result, cfg, usage)
+    write_json_atomic(doc, cfg.results_path)
+
+    print(
+        f"[C1] base   : validity={base_result.schema_validity_rate:.2f} "
+        f"catch={base_result.bug_catch_rate:.2f}"
+    )
+    print(
+        f"[C1] frontier: validity={frontier_result.schema_validity_rate:.2f} "
+        f"catch={frontier_result.bug_catch_rate:.2f}"
+    )
+    print(f"[C1] wrote {cfg.results_path}")
+
+    _log_to_wandb(cfg, base_result, frontier_result)
+
+
+if __name__ == "__main__":
+    main()

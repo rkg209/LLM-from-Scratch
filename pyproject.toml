@@ -10,6 +10,7 @@ requires-python = ">=3.12,<3.13"
 dependencies = [
     "pyyaml>=6.0",
     "jsonschema>=4.21",
+    "pydantic>=2.7",
 ]
 
 [project.optional-dependencies]
@@ -25,7 +26,6 @@ ch2 = [
     "trl>=0.9",
     "datasets>=2.20",
     "bitsandbytes>=0.43; platform_system == 'Linux'",
-    "pydantic>=2.7",
     "wandb>=0.16",
 ]
 ch3 = [
@@ -33,7 +33,6 @@ ch3 = [
     "uvicorn>=0.30",
     "llama-cpp-python>=0.2.80",
     "prometheus-client>=0.20",
-    "pydantic>=2.7",
 ]
 dev = [
     "ruff>=0.5",

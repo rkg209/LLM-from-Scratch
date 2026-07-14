@@ -36,12 +36,75 @@ Fix `Qwen/Qwen2.5-Coder-1.5B-Instruct` in config; write the `ReviewOutput` Pydan
 
 ## Clarifications
 
-*(filled by `/clarify` — open question: which frontier model and API for the 3-shot baseline, and is it the same one used for data generation in C3? Using the same model for both makes the distillation story cleaner but the comparison more circular.)*
+Resolved during `/plan` (full reasoning: `.claude/plans/05-C1-task-schema-and-base-model.md`):
+
+- **Frontier model = Gemini 2.5 Flash**, free tier, `GEMINI_API_KEY`. No Claude API key is
+  available in this environment; Gemini's free tier is rate-limited rather than credit-limited
+  and is a genuine frontier-lab model, so "Frontier API, 3-shot" stays an honest row label.
+  Native JSON mode (`response_mime_type="application/json"`) sidesteps the markdown-fence
+  failure mode entirely on this path.
+- **C3's generator model is not yet decided.** If C3 also picks Gemini, the fine-tune is
+  distilled from the same model it is benchmarked against, which makes "beating the frontier
+  baseline" circular by construction. Survivable — the honest framing becomes "approaches the
+  teacher at a fraction of the serving cost" — but C3's spec must decide this explicitly rather
+  than inherit it by accident.
+
+## Amendments (recorded here per plan, not applied silently)
+
+- **AC-1** originally required `model.name_or_path`. The shipped config uses a flat `model_tag`
+  (`ch2_adaptation/src/ch2_adaptation/config.py:12`, `LOCKED_MODEL_TAG`, locked by
+  `planning/03-system-design.md:339`); `eval/config.py::load_config` rejects unknown keys, so a
+  nested key would break `FinetuneConfig` and all six existing ch2 tests. **AC-1 is amended to
+  `model_tag`.** F2 already landed the lock; C1's new surface is the schema, prompt, stub set,
+  baseline scorer and frontier client built on top of it.
+- **AC-6** originally implied running the real fp32 1.5B model in smoke. fp32 Qwen-1.5B on CPU is
+  ~6 GB resident and ~40-120s of generation alone — it cannot honour the under-120s NFR reliably.
+  **AC-6 is amended**: smoke uses a named tiny stand-in tag (`SMOKE_MODEL_TAG`), proving the code
+  path (load → prompt → generate → parse → score → atomic write); the full config produces the
+  real number.
+- **AC-7 / CON-3.** CON-3 says the API budget is "used exclusively for synthetic training-data
+  generation." C1's 3-shot baseline call is an *eval* use, not data generation. This is recorded
+  as an explicit carve-out to CON-3 rather than assumed to already be covered.
 
 ## Technical plan
 
-*(filled by `/plan`)*
+See `.claude/plans/05-C1-task-schema-and-base-model.md` for full detail (files, approach per
+module, risks, spec-amendment rationale). Summary:
+
+**New files** — `ch2_adaptation/src/ch2_adaptation/{schema.py,prompts.py,model.py,frontier.py,baseline.py}`;
+`eval/stub/{stub_eval.jsonl,stub_eval_smoke.jsonl,README.md}`;
+`ch2_adaptation/configs/{baseline_smoke.yaml,baseline_full.yaml}`;
+`ch2_adaptation/tests/{test_review_schema.py,test_baseline.py,test_baseline_config.py,test_stub_eval_set.py}`.
+
+**Modified** — `config.py` (`BaselineConfig`, `load_baseline_config`, `SMOKE_MODEL_TAG`);
+`eval/harness.py` (extract `write_json_atomic`); `pyproject.toml` (pydantic → base deps,
+`google-genai` → `ch2` extra); `.env.example` (`GEMINI_API_KEY=`).
+
+**Key design points:**
+
+- `schema.py`'s drift guard raises a dedicated `SchemaDriftError(RuntimeError)`, not `assert`
+  (stripped under `python -O` — deliberate deviation from `planning/03-system-design.md:371`).
+  It compares only the load-bearing keys (`required`, `additionalProperties`, `severity.enum`,
+  per-field length/minimum constraints) since Pydantic's `model_json_schema()` emits extra
+  `title` keys that a naive equality check would false-positive on.
+- `prompts.py` is locked and reused verbatim by C4 inference and C5's comparison. No
+  fence-repair in the baseline scoring path — a fenced response is a real schema-validity
+  failure, which is the exact number the fine-tune exists to move.
+- `baseline.py::score_system` takes an injected `Generator = Callable[[list[str]], list[str]]`
+  so every test drives it with a fake — no torch, no network, in the base+dev CI env. Heavy
+  imports (`torch`/`transformers`, `google.genai`) stay function-local in `main()`.
+- `BaselineConfig.__post_init__` enforces the CON-11 invariant: full run requires
+  `base_model_tag == LOCKED_MODEL_TAG`; smoke run requires `base_model_tag == SMOKE_MODEL_TAG`.
+  Smoke writes only to gitignored `outputs/baselines-smoke.json`, never to
+  `eval/results/baselines.json`.
+- `frontier.py::estimate_cost_usd` reads prices from env, never hardcoded (mirrors C3's planned
+  budget guard). Free tier records real token counts alongside an honest `$0.00`.
 
 ## Tasks
 
-*(filled by `/tasks`)*
+- [x] **T1** — `ReviewOutput` Pydantic schema + import-time drift guard against `eval/schema.json`; promote `pydantic` to base `dependencies` in `pyproject.toml`. · files: `ch2_adaptation/src/ch2_adaptation/schema.py`, `ch2_adaptation/tests/test_review_schema.py`, `pyproject.toml` · verify: `uv run pytest ch2_adaptation/tests/test_review_schema.py -q`
+- [ ] **T2** — Hand-written stub eval set + smoke subset + README; locked review prompt module. · files: `eval/stub/stub_eval.jsonl`, `eval/stub/stub_eval_smoke.jsonl`, `eval/stub/README.md`, `ch2_adaptation/src/ch2_adaptation/prompts.py`, `ch2_adaptation/tests/test_stub_eval_set.py` · verify: `uv run pytest ch2_adaptation/tests/test_stub_eval_set.py -q`
+- [ ] **T3** — `BaselineConfig` + `SMOKE_MODEL_TAG` + `load_baseline_config()`; `baseline_smoke.yaml` / `baseline_full.yaml`. · files: `ch2_adaptation/src/ch2_adaptation/config.py`, `ch2_adaptation/configs/baseline_smoke.yaml`, `ch2_adaptation/configs/baseline_full.yaml`, `ch2_adaptation/tests/test_baseline_config.py` · verify: `uv run pytest ch2_adaptation/tests/test_baseline_config.py -q`
+- [ ] **T4** — `write_json_atomic` extracted in `eval/harness.py`; `baseline.py` core (`score_system`, `build_baselines_doc`) driven by fakes. · files: `eval/harness.py`, `ch2_adaptation/src/ch2_adaptation/baseline.py`, `ch2_adaptation/tests/test_baseline.py` · verify: `uv run pytest ch2_adaptation/tests/test_baseline.py eval/tests -q`
+- [ ] **T5** — `model.py::make_hf_generator`; `frontier.py` (`GeminiClient`, `StubFrontierClient`, `estimate_cost_usd`); `baseline.py::main`; `ch2` extra deps; `.env.example`. Smoke run green under 120s. · files: `ch2_adaptation/src/ch2_adaptation/model.py`, `ch2_adaptation/src/ch2_adaptation/frontier.py`, `ch2_adaptation/src/ch2_adaptation/baseline.py`, `pyproject.toml`, `.env.example` · verify: `time uv run python -m ch2_adaptation.baseline --config ch2_adaptation/configs/baseline_smoke.yaml`
+- [ ] **T6** — Spec amendments recorded (this file), `specs/STATUS.md` C1 → `planned`/`building` as applicable, `progress_report.md` entries for T1-T5. Full baseline run + `eval/results/baselines.json` commit happens outside this session (GPU-budget hook blocks `--config *full*` in-session by design). · files: `specs/05-C1-task-schema-and-base-model.md`, `specs/STATUS.md`, `progress_report.md` · verify: `uv run ruff check . && uv run black --check . && uv run pytest -q`

@@ -48,7 +48,7 @@ Spec IDs (`F1`, `C1`, `A1`, …) are unchanged and are what the slash commands t
 
 | # | ID | Spec | State | Depends on | W&B run |
 |---|---|---|---|---|---|
-| 05 | C1 | task-schema-and-base-model | draft | F3 | — |
+| 05 | C1 | task-schema-and-base-model | building | F3 | — |
 | 06 | C2 | independent-eval-set | draft | C1 | — |
 | 07 | C3 | synthetic-training-data | draft | C1 | — |
 | 08 | C4 | qlora-finetune | draft | C2, C3 | — |

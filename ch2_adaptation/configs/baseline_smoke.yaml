@@ -1,0 +1,18 @@
+# CPU smoke profile -- proves load -> prompt -> generate -> parse -> score -> atomic write,
+# in seconds (NFR-1). SMOKE_MODEL_TAG is a tiny stand-in, not the real 1.5B model: fp32
+# Qwen-1.5B on CPU is 40-120s of generation alone and cannot honour the time budget reliably.
+# StubFrontierClient makes no network call, so this needs no GEMINI_API_KEY.
+# Writes to gitignored outputs/baselines-smoke.json, NEVER to eval/results/baselines.json
+# (BaselineConfig.__post_init__ enforces this).
+base_model_tag: hf-internal-testing/tiny-random-Qwen2ForCausalLM
+frontier_provider: stub
+frontier_model_tag: stub-frontier
+stub_set_path: eval/stub/stub_eval_smoke.jsonl
+results_path: outputs/baselines-smoke.json
+max_new_tokens: 32
+temperature: 0.0
+n_few_shot: 3
+use_4bit: false
+seed: 42
+wandb_mode: disabled
+wandb_project: ch2-adaptation

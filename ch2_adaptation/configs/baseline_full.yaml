@@ -1,0 +1,17 @@
+# The published baseline run: base model zero-shot + frontier API 3-shot on the stub set.
+# The GPU-budget hook blocks this file from being run inside a session (`--config .../full.yaml`
+# matches its full-run pattern) -- correct, since this downloads ~3GB and calls a paid-tier-
+# capable API. Run it by hand: GEMINI_API_KEY=... uv run python -m ch2_adaptation.baseline
+# --config ch2_adaptation/configs/baseline_full.yaml
+base_model_tag: Qwen/Qwen2.5-Coder-1.5B-Instruct
+frontier_provider: gemini
+frontier_model_tag: gemini-2.5-flash
+stub_set_path: eval/stub/stub_eval.jsonl
+results_path: eval/results/baselines.json
+max_new_tokens: 256
+temperature: 0.0
+n_few_shot: 3
+use_4bit: false # fp32 zero-shot baseline; 4-bit is the fine-tuned model's path, not this one
+seed: 42
+wandb_mode: online
+wandb_project: ch2-adaptation

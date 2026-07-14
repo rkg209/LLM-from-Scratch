@@ -96,11 +96,20 @@ def score_outputs(
     )
 
 
-def write_result(result: EvalResult, path: Path | str) -> None:
-    """Write a result to JSON atomically — a half-written results file is worse than none."""
+def write_json_atomic(payload: dict[str, Any], path: Path | str) -> None:
+    """Write JSON atomically: to a `.tmp` file, then rename over the target.
+
+    A half-written results file is worse than none — the rename is what makes a reader
+    see either the old complete file or the new complete one, never a partial write.
+    """
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_suffix(path.suffix + ".tmp")
     with tmp.open("w") as handle:
-        json.dump(result.to_json(), handle, indent=2)
+        json.dump(payload, handle, indent=2)
     tmp.replace(path)
+
+
+def write_result(result: EvalResult, path: Path | str) -> None:
+    """Write one system's scored result to JSON atomically."""
+    write_json_atomic(result.to_json(), path)

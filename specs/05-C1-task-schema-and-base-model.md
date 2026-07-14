@@ -107,4 +107,21 @@ module, risks, spec-amendment rationale). Summary:
 - [x] **T3** — `BaselineConfig` + `SMOKE_MODEL_TAG` + `load_baseline_config()`; `baseline_smoke.yaml` / `baseline_full.yaml`. · files: `ch2_adaptation/src/ch2_adaptation/config.py`, `ch2_adaptation/configs/baseline_smoke.yaml`, `ch2_adaptation/configs/baseline_full.yaml`, `ch2_adaptation/tests/test_baseline_config.py` · verify: `uv run pytest ch2_adaptation/tests/test_baseline_config.py -q`
 - [x] **T4** — `write_json_atomic` extracted in `eval/harness.py`; `baseline.py` core (`score_system`, `build_baselines_doc`) driven by fakes. · files: `eval/harness.py`, `ch2_adaptation/src/ch2_adaptation/baseline.py`, `ch2_adaptation/tests/test_baseline.py` · verify: `uv run pytest ch2_adaptation/tests/test_baseline.py eval/tests -q`
 - [x] **T5** — `model.py::make_hf_generator`; `frontier.py` (`GeminiClient`, `StubFrontierClient`, `estimate_cost_usd`); `baseline.py::main`; `ch2` extra deps; `.env.example`. Smoke run green under 120s. · files: `ch2_adaptation/src/ch2_adaptation/model.py`, `ch2_adaptation/src/ch2_adaptation/frontier.py`, `ch2_adaptation/src/ch2_adaptation/baseline.py`, `pyproject.toml`, `.env.example` · verify: `time uv run python -m ch2_adaptation.baseline --config ch2_adaptation/configs/baseline_smoke.yaml`
-- [ ] **T6** — Spec amendments recorded (this file), `specs/STATUS.md` C1 → `planned`/`building` as applicable, `progress_report.md` entries for T1-T5. Full baseline run + `eval/results/baselines.json` commit happens outside this session (GPU-budget hook blocks `--config *full*` in-session by design). · files: `specs/05-C1-task-schema-and-base-model.md`, `specs/STATUS.md`, `progress_report.md` · verify: `uv run ruff check . && uv run black --check . && uv run pytest -q`
+- [x] **T6** — Spec amendments recorded (this file), `specs/STATUS.md` C1 → `planned`/`building` as applicable, `progress_report.md` entries for T1-T5. Full baseline run + `eval/results/baselines.json` commit happens outside this session (GPU-budget hook blocks `--config *full*` in-session by design). · files: `specs/05-C1-task-schema-and-base-model.md`, `specs/STATUS.md`, `progress_report.md` · verify: `uv run ruff check . && uv run black --check . && uv run pytest -q`
+
+## Remaining before this spec can move to `done`
+
+All six tasks are committed and the full gate is green. **AC-5 is still open**: the full baseline
+run has not happened. It cannot happen in-session — the GPU-budget hook blocks any command
+matching `--config .../full.yaml` by design, and this is the correct behavior (a full run
+downloads ~3GB and calls a paid-tier-capable API). Run it by hand, then commit the result:
+
+```bash
+GEMINI_API_KEY=... PRICE_PER_1K_INPUT_USD=... PRICE_PER_1K_OUTPUT_USD=... \
+  uv run python -m ch2_adaptation.baseline --config ch2_adaptation/configs/baseline_full.yaml
+```
+
+Then inspect `eval/results/baselines.json` (both `base_model` and `frontier_api` entries, a real
+`n_samples`), commit it, and move C1 to `done` in `specs/STATUS.md`. **Only then may C2/C3 begin
+in earnest** — per FR-15, `baselines.json` must exist and be committed before C4 moves to
+`building`.

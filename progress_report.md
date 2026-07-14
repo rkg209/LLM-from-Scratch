@@ -405,3 +405,30 @@ check entirely while still clobbering the real file. Fixed by comparing `Path(..
 both sides instead of the raw strings. The reviewer also noted `max_new_tokens`/`temperature`/
 `n_few_shot` have no range validation yet; left unvalidated deliberately, since T3 is config wiring
 and those fields aren't consumed by any code until T5.
+
+---
+
+### Entry — C1 T4: `write_json_atomic` primitive + `baseline.py` core scoring
+
+**What.** Extracted `write_json_atomic(payload, path)` in `eval/harness.py` as a public
+primitive — `write_result` is now a one-line wrapper over it — so C1's `baselines.json` and any
+future result file share one atomic-write implementation instead of each writing its own
+tmp-then-rename. Added `ch2_adaptation/baseline.py`: `score_system(prompts, generate, stub_path)`
+takes an injected `Generator` callable so every test drives it with a fake instead of a real
+model; `build_baselines_doc(base, frontier, cfg, usage)` assembles the eventual `baselines.json`
+payload, including `stub_set_sha256`/`schema_sha256` so a committed baseline file is re-checkable
+later if either input silently changed underneath it (X2). No `main()` yet — that's T5, once the
+real generators exist.
+
+**Why.** `score_system` scores exclusively through `eval.harness.score_outputs` rather than any
+ad-hoc parsing, because AC-3/NFR-7 require every system (base, frontier, eventually the fine-tuned
+model) to be scored by the same code — a metric computed a different way for one system is not
+comparable to the others. The injected-generator design is what makes this testable in the
+base+dev CI environment: no torch, no network, just a fake that returns canned strings.
+
+**How — the code-review catch.** `code-reviewer` found `build_baselines_doc` hardcoded
+`"dtype": "float32"` regardless of `cfg.use_4bit`. Harmless today (baseline configs always run
+fp32), but exactly the kind of config-drift trap the project's "config-driven, no magic numbers"
+rule exists to prevent: if a baseline config ever flips `use_4bit`, the recorded dtype in the
+published `baselines.json` would silently lie about what actually ran. Fixed to derive it:
+`"int4" if cfg.use_4bit else "float32"`.

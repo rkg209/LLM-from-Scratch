@@ -37,6 +37,7 @@ The monorepo skeleton: the three package directories, the shared `eval/` and `sp
 
 - **Q:** Python version? → **A:** Pinned to 3.12. 3.13 is ahead of parts of the ML stack (bitsandbytes, llama-cpp-python wheels). *(2026-07-13)*
 - **Q:** One package per `pyproject.toml`, or one at the root? → **A:** One at the root with three importable packages and optional extras. A solo monorepo does not need workspace indirection. *(2026-07-13)*
+- **Note:** AC-1 (tree matches `planning/02-architecture.md` §2) was found unmet after F1 had already been marked `done` — `scripts/` was missing. Fixed 2026-07-14 by adding `scripts/README.md` as a contract placeholder; no other AC was affected. *(2026-07-14)*
 
 ## Technical plan
 

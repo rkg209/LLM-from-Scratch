@@ -200,3 +200,13 @@ It also has a second audience. This project is a portfolio artifact; an intervie
 **How.** Entries 001–008 were reconstructed from this session's work, including the failures — the importlib attempt that made things worse, the `conftest.py` that fixed the wrong problem, the verification bug that framed a working hook as broken. Those are the entries with the most value in them, so they are recorded in full rather than summarized into a clean narrative that never happened.
 
 Going forward: an entry per meaningful change, appended at the bottom, answering what / why / how, plus any problem hit and how it was resolved.
+
+---
+
+### Entry 010 — F1 gap closure: `scripts/` was missing despite F1 being marked `done`
+
+**What.** Created `scripts/README.md` as a directory-reservation placeholder. `scripts/` is named in `planning/02-architecture.md` §3.3 and in `specs/O1-merge-and-gguf-quantize.md`, which will land `merge_adapter.py`, `export_gguf.py`, and `quantize_gguf.py` there. With this, F1 now passes all 8 of its acceptance criteria against the live tree, not just 7.
+
+**Why.** `specs/STATUS.md` marked F1 `done` with all tasks checked off, but a live re-check of its 8 acceptance criteria found AC-1 (tree matches the architecture doc) failing — `scripts/` did not exist. F1 is the sole dependency listed by F2, F3, and F4, so a silently-failing AC in the foundation spec would have surfaced later as improvisation mid-O1, at a worse time to notice it. The failure worth recording isn't the missing folder — it's that `done` was set without mechanically re-checking every AC against the tree.
+
+**How.** Reused the pattern already established by `eval/holdout/README.md` and `eval/results/README.md`: a placeholder README that reserves the directory *and* documents its contract, instead of a content-free `.gitkeep`. The README states the directory's purpose (standalone helpers, not an importable package), tables the three planned scripts with their owning spec (O1), and notes explicitly that none of them exist yet so the empty directory doesn't read as a bug. No stub Python files were added — writing them now would be implementing O1 without an accepted plan. Also added a dated note under `specs/F1-repo-tooling-skeleton.md`'s Clarifications recording the miss, per the project rule that specs are annotated, not silently patched.

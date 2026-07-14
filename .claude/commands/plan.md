@@ -7,7 +7,7 @@ Write the **Technical plan** section of spec **$1**.
 
 Refuse to proceed if the spec's state in `specs/STATUS.md` is not at least `planned`, or if its Clarifications section still has open questions — say so and point the user at `/clarify`.
 
-1. Read `specs/$1-*.md` in full, plus the sections of `planning/02-architecture.md` and `planning/03-system-design.md` that describe the modules this spec touches. Those documents already specify module names, function signatures, dataclass fields, and invariants — **use them; do not invent parallel designs.** Where the plan must deviate from them, say so explicitly and give the reason.
+1. Read `specs/*$1-*.md` in full, plus the sections of `planning/02-architecture.md` and `planning/03-system-design.md` that describe the modules this spec touches. Those documents already specify module names, function signatures, dataclass fields, and invariants — **use them; do not invent parallel designs.** Where the plan must deviate from them, say so explicitly and give the reason.
 2. Read the code that already exists in the target package before proposing new code. Reuse the shared config loader (`eval/config.py`) and the shared harness (`eval/harness.py`) rather than reimplementing either.
 3. Write the plan into the spec file:
    - **Files** — every file created or modified, with a one-line purpose each.

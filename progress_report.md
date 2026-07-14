@@ -210,3 +210,58 @@ Going forward: an entry per meaningful change, appended at the bottom, answering
 **Why.** `specs/STATUS.md` marked F1 `done` with all tasks checked off, but a live re-check of its 8 acceptance criteria found AC-1 (tree matches the architecture doc) failing — `scripts/` did not exist. F1 is the sole dependency listed by F2, F3, and F4, so a silently-failing AC in the foundation spec would have surfaced later as improvisation mid-O1, at a worse time to notice it. The failure worth recording isn't the missing folder — it's that `done` was set without mechanically re-checking every AC against the tree.
 
 **How.** Reused the pattern already established by `eval/holdout/README.md` and `eval/results/README.md`: a placeholder README that reserves the directory *and* documents its contract, instead of a content-free `.gitkeep`. The README states the directory's purpose (standalone helpers, not an importable package), tables the three planned scripts with their owning spec (O1), and notes explicitly that none of them exist yet so the empty directory doesn't read as a bug. No stub Python files were added — writing them now would be implementing O1 without an accepted plan. Also added a dated note under `specs/F1-repo-tooling-skeleton.md`'s Clarifications recording the miss, per the project rule that specs are annotated, not silently patched.
+
+---
+
+## 2026-07-15 — Spec filenames carry the build order
+
+**What.** Renamed all 24 spec files from `ID-slug.md` to `NN-ID-slug.md`, where `NN` is the global
+build order: `01-F1-…` → `04-F4-…` (foundation), `05-C1-…` → `09-C5-…` (Chapter 2),
+`10-O0-…` → `16-O6-…` (Chapter 3), `17-A1-…` → `21-A5-…` (Chapter 1), `22-X1-…` → `24-X3-…`
+(cross-cutting). Spec **IDs are unchanged** — `C1` is still `C1`. `specs/STATUS.md` gained a `#`
+column, a track legend, and a progress summary, and its sections were reordered to match the
+filenames. `session_greeter.py`'s row regex and the `specs/$1-*.md` globs in `/implement`,
+`/specify`, `/clarify` and `/plan` were updated to match.
+
+**Why.** `ls specs/` sorted alphabetically into `A, C, F, O, X`, which is neither the build order
+nor any order at all — the actual sequence lived only in prose inside `STATUS.md` ("the critical
+path is F1→F3 → C1→C5 → O0→O5"). A reader of the directory had no way to know that `F1` comes
+before `A1`, or that Chapter 1 is a parallel track rather than step one. The letters were *not*
+arbitrary (F/A/C/O/X are tracks), so the fix was to surface the order the letters already implied,
+not to flatten them away — a flat `01..24` would have lost the track grouping and forced every
+`C5`/`A5` reference in `README.md` and the planning docs to be rewritten.
+
+**How.** `git mv` for all 24 files so history follows the rename. Kept the IDs verbatim — including
+the `O0` oddity — precisely so that nothing outside `specs/` had to change: `README.md`,
+`planning/`, and the historical `progress_report.md` entries all cite specs by ID, and those
+citations are still correct. The prefix is decoration for humans reading the directory; the ID
+remains the key.
+
+**The problem that nearly shipped.** The first pass renamed the files and stopped. Two things broke
+silently, neither caught by lint or tests:
+
+1. The four slash commands read a spec via the glob `specs/$1-*.md`. With an `05-` prefix,
+   `/implement C1` matched *nothing* — the command would have reported "no such spec" for every
+   spec in the repo. Fixed by widening the glob to `specs/*$1-*.md`.
+2. `session_greeter.py` matched a backlog row with `^\|\s*([A-Z]\d+)\s*\|` — ID in column one. The
+   new `#` column shifted the ID to column two, so *no* row matched, `_next_spec()` returned
+   `None`, and every session would have opened with "specs/STATUS.md not found or empty — start
+   with /specify." A green `pytest` proved nothing here; the hook has no test. It was caught only
+   by piping `{}` into the hook and reading the JSON it emitted.
+
+The lesson worth keeping: the specs directory is not inert documentation — it is an *interface*
+that hooks and slash commands parse. Renaming its files is a schema change, and the only honest
+verification is to execute the things that read it.
+
+**Also — a priority flip, stated out loud.** `STATUS.md` claimed the critical path was
+F→C→O with Chapter 1 in parallel, but its *tables* listed Chapter 1 before Chapter 2, and the
+greeter picks the first not-`done` row in file order. So every session had been opening with
+"next up: A1" — the parallel track — contradicting the file's own stated critical path. Reordering
+the sections to match the build order makes the greeter say **C1**, which is what the critical path
+actually calls for. This is a real change in what gets built next, made deliberately: it is the
+file being made consistent with itself, not a new decision about priorities. If Chapter 1 is in
+fact wanted first, the fix is to renumber the A track to `05`–`09` and re-sort, not to revert
+the naming.
+
+**Status snapshot.** 4 of 24 specs done (F1–F4), all foundation. Chapters 1–3 are unstarted:
+`train.py`, `finetune.py` and `serve.py` are 42–48-line config-loading stubs with no model code.

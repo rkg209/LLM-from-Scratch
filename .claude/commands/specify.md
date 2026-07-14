@@ -5,7 +5,7 @@ argument-hint: <spec-id> (e.g. A1, C3, O2)
 
 Author or revise the spec for backlog item **$1**.
 
-1. Read `specs/STATUS.md` to find the item, and read its existing spec file `specs/$1-*.md` if one exists.
+1. Read `specs/STATUS.md` to find the item, and read its existing spec file `specs/*$1-*.md` if one exists.
 2. Read the source material this spec derives from, and only that — do not read the whole `planning/` folder:
    - `llm-engineering-architecture-to-edge.md` §8 for the backlog entry (goal, acceptance signal, dependency).
    - `planning/01-requirements.md` for the FR/NFR numbers this spec must satisfy.

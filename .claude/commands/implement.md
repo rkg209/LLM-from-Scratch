@@ -5,7 +5,7 @@ argument-hint: <spec-id> <task-id> (e.g. A1 T2)
 
 Implement task **$2** of spec **$1** — that task and nothing else.
 
-1. Read `specs/$1-*.md`. Find task **$2**. If the spec has no Technical plan or no task list, stop and point the user at `/plan` or `/tasks`.
+1. Read `specs/*$1-*.md`. Find task **$2**. If the spec has no Technical plan or no task list, stop and point the user at `/plan` or `/tasks`.
 2. Re-read the plan's Approach section for the part that covers this task, and read the existing code it builds on.
 3. Implement it, following the conventions in `CLAUDE.md`: type hints everywhere, functions under ~40 lines, every hyperparameter from config, no magic numbers, seeds set explicitly.
 4. Write the task's test in the package's `tests/` directory. The test must fail if the implementation is wrong, not merely execute it.

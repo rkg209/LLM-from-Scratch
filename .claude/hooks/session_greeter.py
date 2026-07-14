@@ -17,8 +17,12 @@ from _hooklib import REPO_ROOT, add_context, allow, run  # noqa: E402
 
 STATUS_PATH = REPO_ROOT / "specs" / "STATUS.md"
 
-# A backlog row: | F1 | repo-tooling-skeleton | done | ... |
-ROW = re.compile(r"^\|\s*([A-Z]\d+)\s*\|\s*([^|]+?)\s*\|\s*(draft|planned|building|done)\s*\|")
+# A backlog row: | 05 | C1 | task-schema-and-base-model | draft | ... |
+# The leading build-order column is required, which is what distinguishes a backlog row from the
+# other tables in STATUS.md (the track legend and the progress summary).
+ROW = re.compile(
+    r"^\|\s*\d+\s*\|\s*([A-Z]\d+)\s*\|\s*([^|]+?)\s*\|\s*(draft|planned|building|done)\s*\|"
+)
 
 
 def _next_spec() -> tuple[str, str, str] | None:

@@ -488,3 +488,35 @@ unpacked it as `**encoded` assuming a dict, and hit `KeyError: 'shape'` deep ins
 external — a model tag, a package name, a schema key — is a claim, not a fact, until it's actually
 exercised. T2 caught this for ground-truth labels; this entry catches it for a model tag on the
 Hub. The pattern is the same: write the plausible thing, then run it before trusting it.
+
+---
+
+### Entry — C1 T6: task checklist closed; AC-5 left for the human
+
+**What.** All six of C1's tasks are now ticked and committed; the full gate (`ruff`, `black`,
+`pytest -q`) is green at 98 tests. Added a "Remaining before this spec can move to `done`" section
+to the spec recording that **AC-5 is still open**: `eval/results/baselines.json` does not exist
+yet, because producing it requires the full baseline run — the real 1.5B model plus a real
+`GEMINI_API_KEY` call — which cannot happen inside this session. `specs/STATUS.md` keeps C1 at
+`building`, not `done`.
+
+**Why.** This is by design, not an oversight: `.claude/hooks/gpu_budget_guard.py` blocks any
+command matching `--config .../full.yaml`, and `baseline_full.yaml` matches it — correctly, since
+that command downloads ~3GB and calls a paid-tier-capable API. Spec C1's own Risk 4 named this in
+advance. FR-15 is explicit that `baselines.json` must exist and be committed *before* C4 moves to
+`building`, so the spec cannot honestly claim `done` until a human runs the full command and
+commits the result.
+
+**A small friction hit while writing this very entry:** the commit-message draft for T6 quoted the
+literal string `--config .../full.yaml` as an example, and the GPU-budget hook denied the `git
+commit` itself — it matches on the whole command string, including quoted example text inside a
+commit message, not just an actual invocation. Not a bug in the hook (a hook that can be talked out
+of firing by nesting the trigger string inside a comment is not much of a guardrail); reworded the
+message to describe the behavior without reproducing the literal flag pattern.
+
+**Status snapshot.** C1's code is complete and merged: schema + drift guard (T1), stub eval set +
+locked prompt (T2), `BaselineConfig` (T3), scoring core (T4), the real generators and a green
+smoke run (T5). What's left is entirely outside the session's reach: run
+`GEMINI_API_KEY=... PRICE_PER_1K_INPUT_USD=... PRICE_PER_1K_OUTPUT_USD=... uv run python -m
+ch2_adaptation.baseline --config ch2_adaptation/configs/baseline_full.yaml`, inspect the result,
+commit it, then flip C1 to `done`. Only after that may C2/C3 begin in earnest.

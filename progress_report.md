@@ -379,3 +379,29 @@ keys, in-range numbers, no exact-string duplication) proves nothing about whethe
 *correct*. For hand-written eval data, a review pass that actually reads the code and checks the
 label against it is not optional — it's the only thing standing between a plausible-looking record
 and a silently wrong ground truth that the metrics trust completely.
+
+---
+
+### Entry — C1 T3: `BaselineConfig` + `baseline_smoke.yaml` / `baseline_full.yaml`
+
+**What.** `ch2_adaptation/config.py` gained `SMOKE_MODEL_TAG` (the one allowlisted tiny stand-in,
+`hf-internal-testing/tiny-random-Qwen2ForCausalLM`), `BaselineConfig`, and `load_baseline_config()`.
+`__post_init__` enforces CON-11 for the baseline path the same way `FinetuneConfig` already does
+for the fine-tune path: the full profile must use `LOCKED_MODEL_TAG`; the smoke profile must use
+`SMOKE_MODEL_TAG` and must not write to `eval/results/baselines.json`. Two new configs,
+`baseline_full.yaml` and `baseline_smoke.yaml`, and `test_baseline_config.py` exercising both
+guards via `dataclasses.replace`.
+
+**Why.** This is the mechanism behind spec C1's Risk 5 — "the worst outcome this spec has" is a
+smoke run's tiny-random-model score silently overwriting the committed, published baseline numbers
+that C4 is gated on. Encoding the guard in the config's `__post_init__` means it fires the moment a
+`BaselineConfig` is constructed, not only when `baseline.py`'s `main()` happens to remember to
+check.
+
+**How — the code-review catch.** `code-reviewer` found the `results_path` guard compared strings
+verbatim (`self.results_path == "eval/results/baselines.json"`), so a smoke config written as
+`./eval/results/baselines.json` — a different string, the same file — would have bypassed the
+check entirely while still clobbering the real file. Fixed by comparing `Path(...).resolve()` on
+both sides instead of the raw strings. The reviewer also noted `max_new_tokens`/`temperature`/
+`n_few_shot` have no range validation yet; left unvalidated deliberately, since T3 is config wiring
+and those fields aren't consumed by any code until T5.

@@ -335,3 +335,47 @@ machinery this file has no other use for. Full gate (`ruff`, `black`, `pytest -q
 after the fix. Committed as two commits: one for the plan-fill/task-list (not itself a numbered
 task), one for T1's code — kept separate so the commit history doesn't attribute planning prose to
 the schema module's diff.
+
+---
+
+### Entry — C1 T2: stub eval set + locked review prompt
+
+**What.** `eval/stub/stub_eval.jsonl` — 24 hand-written, single-bug Java snippets
+(`{id, code, line, category, severity}`) plus `eval/stub/stub_eval_smoke.jsonl`, a 3-record
+strict subset, and a README explaining the stub set is not the C2 holdout. `ch2_adaptation/prompts.py`
+— the locked `SYSTEM_PROMPT` (inlines `eval/schema.json`, explicitly forbids markdown fences) and
+three hand-written few-shot examples behind `format_zero_shot()` / `format_three_shot()`, which C4
+and C5 must reuse verbatim so every system is scored against the same prompt.
+
+**Why.** The stub set exists so C1's baselines can be measured before the real holdout (built in
+C2) exists at all — the whole point of the spec is not skipping that step. It's generated (not
+committed as generated code) via a one-off script kept in the scratchpad rather than the repo,
+since the deliverable is the data file, not a generator for it.
+
+**How — the code-review catch.** Wrote the 24 records by hand-computing each bug's line number
+inside its snippet, then dispatched `code-reviewer` on the diff before committing. It found two
+real defects that the existing tests (unique ids, line-in-range) could not catch because they only
+check *shape*, not *correctness against the actual bug*:
+
+1. `stub-017`'s `line` pointed at `flags.add(flag)` (the call site), 3 lines past
+   `eval/metrics.py`'s `LINE_TOLERANCE = 2` from the real defect — the `static List<String> flags`
+   field declaration. A model that correctly named the field would have scored as *wrong*. Fixed
+   by pointing `line` at the declaration.
+2. `stub-009`'s bug (`sum += q * Integer.MAX_VALUE`, which overflows on every non-zero input,
+   guaranteeing a wrong result on virtually every call) was labeled `"severity": "minor"`. Relabeled
+   `"major"`.
+
+It also flagged something neither test could see: two of the three few-shot examples shared an
+*exact* bug category with stub-set records (`off-by-one`, `resource-leak` — the same string used
+by `stub-003` and by `stub-001`/`stub-024`/`stub-019`'s pattern). The disjointness test only checks
+that example *code* doesn't literally appear in the stub set, so same-category priming passed it
+silently while still biasing the three-shot baseline toward the categories most represented in the
+stub set. Replaced those two examples with categories absent from the stub set entirely
+(`equals-override-signature-mismatch`, `path-traversal`) rather than trying to extend the test to
+catch semantic-pattern overlap, which would need a real bug-similarity metric to do honestly.
+
+**The lesson worth keeping (again).** A test that checks a ground-truth record's *shape* (right
+keys, in-range numbers, no exact-string duplication) proves nothing about whether the record is
+*correct*. For hand-written eval data, a review pass that actually reads the code and checks the
+label against it is not optional — it's the only thing standing between a plausible-looking record
+and a silently wrong ground truth that the metrics trust completely.

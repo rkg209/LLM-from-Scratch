@@ -265,3 +265,73 @@ the naming.
 
 **Status snapshot.** 4 of 24 specs done (F1–F4), all foundation. Chapters 1–3 are unstarted:
 `train.py`, `finetune.py` and `serve.py` are 42–48-line config-loading stubs with no model code.
+
+---
+
+## Session 2 — 2026-07-15 — C1: schema, baselines, and the drift guard
+
+Goal: implement spec C1 (task-schema-and-base-model) — freeze the base model tag (already landed
+by F2), write the Pydantic mirror of `eval/schema.json`, the locked review prompt, a hand-written
+stub eval set, and `baseline.py`, which measures the base model zero-shot and a frontier API
+3-shot on that stub set and records both to `eval/results/baselines.json` before any fine-tuning
+starts.
+
+---
+
+### Entry — C1 plan finalized; open `/clarify` question resolved
+
+**What.** Filled `specs/05-C1-task-schema-and-base-model.md`'s Technical plan section from
+`.claude/plans/05-C1-task-schema-and-base-model.md`, resolved the spec's open clarification, and
+wrote the six-task checklist. Moved C1 to `building` in `specs/STATUS.md`.
+
+**Why.** The `/tasks` skill refuses to write a task list against a spec with no Technical plan —
+and the plan document (written in a prior session) already contained one, plus the answer to the
+spec's open question (which frontier API for the 3-shot baseline). Rather than re-deriving that
+from scratch, it was transcribed into the spec so the normal `/tasks` → `/implement` loop could
+run unmodified.
+
+**How.** Frontier model = **Gemini 2.5 Flash**, free tier (`GEMINI_API_KEY`) — no Claude API key
+is available in this environment, and Gemini's free tier is rate-limited rather than
+credit-limited, so "Frontier API, 3-shot" stays an honest row label; native JSON mode also avoids
+the markdown-fence failure mode C1's baseline scoring deliberately does not repair. Recorded three
+spec amendments surfaced by the plan rather than applied silently: AC-1's `model.name_or_path` →
+the shipped flat `model_tag` key; AC-6's implied real-fp32 smoke run → a named tiny stand-in tag
+(fp32 Qwen-1.5B cannot honor the under-120s smoke budget); AC-7 as an explicit carve-out to CON-3
+(the API budget line was written for training-data generation, and a 3-shot eval call is a
+different use that needed to be named, not assumed-covered). Flagged for C3: if C3's synthetic-data
+generator also ends up being Gemini, the fine-tune is distilled from the same model it is
+benchmarked against — survivable, but C3's spec must decide that on purpose.
+
+---
+
+### Entry — C1 T1: `ReviewOutput` schema + import-time drift guard
+
+**What.** `ch2_adaptation/src/ch2_adaptation/schema.py::ReviewOutput` — a Pydantic model
+(`extra="forbid"`) with the same five fields and constraints as `eval/schema.json`. On import it
+calls `_assert_matches_eval_schema()`, which compares the two on every load-bearing key (required
+fields, `additionalProperties`, the severity enum, and each field's length/minimum constraint) and
+raises `SchemaDriftError` if they disagree. Promoted `pydantic` from the `ch2`/`ch3` optional
+extras into the base `dependencies`, since this module must import in the base+dev CI environment
+alongside the rest of the eval contract. Ten tests in `test_review_schema.py`, including three
+that mutate a deep copy of the real schema and assert the guard actually raises on each mutated
+key — not merely that the guard runs.
+
+**Why.** The design doc (`planning/03-system-design.md:371`) specifies the guard as a bare
+`assert`. Deliberately not used here: `assert` is stripped under `python -O`, which would silently
+disable the one check whose entire purpose is to never be silent. A dedicated
+`SchemaDriftError(RuntimeError)` can't be optimized away. Also: a naive
+`ReviewOutput.model_json_schema() == json.load(open("eval/schema.json"))` does not work — Pydantic
+emits a `title` key per property and no top-level `$schema` key that the reference JSON has — so
+the comparison had to be narrowed to exactly the keys that constrain scoring, the same set
+`eval/tests/test_schema.py` already pins.
+
+**How.** Wrote the model and guard, then a code-reviewer pass on the diff. It flagged one real
+issue: a `_SEVERITY_VALUES` tuple was defined but never referenced — the `Literal[...]` on the
+`severity` field repeated the same four strings independently, so if the enum ever changed, one
+copy could drift from the other with nothing catching it (the guard only compares the `Literal`
+against `eval/schema.json`, never against that unused tuple). Deleted it rather than wiring it in,
+since a Python `Literal` type can't be parameterized from a runtime tuple without extra
+machinery this file has no other use for. Full gate (`ruff`, `black`, `pytest -q`, 72 tests) green
+after the fix. Committed as two commits: one for the plan-fill/task-list (not itself a numbered
+task), one for T1's code — kept separate so the commit history doesn't attribute planning prose to
+the schema module's diff.

@@ -25,8 +25,9 @@ Spec IDs (`F1`, `C1`, `A1`, …) are unchanged and are what the slash commands t
 ## Progress
 
 **4 of 24 done (17%)** — all foundation. Chapter 2 is underway (C1 building, C2 paused on a
-GitHub-token blocker, C3 building, C4 building); Chapters 1 and 3 are unstarted: `train.py` and
-`serve.py` are config-loading stubs with no model code behind them.
+GitHub-token blocker, C3/C4/C5 building — all with code complete, each waiting on a manual run
+that depends on the others); Chapters 1 and 3 are unstarted: `train.py` and `serve.py` are
+config-loading stubs with no model code behind them.
 
 | Track | Done | Total |
 |---|---|---|
@@ -53,7 +54,7 @@ GitHub-token blocker, C3 building, C4 building); Chapters 1 and 3 are unstarted:
 | 06 | C2 | independent-eval-set | building (paused: T4-T7 need `GITHUB_TOKEN`) | C1 | — |
 | 07 | C3 | synthetic-training-data | building | C1 | — |
 | 08 | C4 | qlora-finetune | building (code done; full GPU run pending) | C2, C3 | — |
-| 09 | C5 | head-to-head-eval-table | draft | C4 | — |
+| 09 | C5 | head-to-head-eval-table | building (code done; full run pending) | C4 | — |
 
 ## Chapter 3 — Operation *(critical path)*
 

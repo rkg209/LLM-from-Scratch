@@ -548,3 +548,28 @@ inside a string, empty input) so the regression can’t come back silently.
 
 **Status.** Task 1 of 8 for C2. Next: `holdout_curator.py` core (assemble/validate/dedup/manifest)
 plus its fixture-driven tests.
+
+---
+
+### Entry — C2 T2: `holdout_curator.py` core (assemble/validate/dedup/manifest)
+
+**What.** Added `assemble_records`, `validate_records`, `dedup_records`, and `build_manifest` to a
+new `ch2_adaptation/holdout_curator.py`, plus 16 fixture-driven tests. `main()`/CLI wiring and
+`label_mined_records` are deliberately not here — the plan schedules those for tasks 5/6, and
+scope discipline means not pulling them forward.
+
+**Why.** These four functions are the pure core the eval-set freeze depends on: stamp identity,
+validate against the one schema everything else scores against, dedup against both
+themselves and the stub sets, then produce the manifest §3.4 specifies. All fixture/fake-driven,
+no network, no torch — same shape as `test_baseline.py`.
+
+**What the code-reviewer caught.** Two should-fix gaps: (1) `validate_records`'s own tests only
+exercised missing-required-field and bad-enum, leaving type-mismatch, string-too-long, and
+below-minimum violations unverified even though the schema defines all of them; (2)
+`dedup_records` did `record["code"]` unguarded, so a malformed record missing that key raised a
+bare `KeyError` with no way to trace which record. Fixed both: `dedup_records` now raises
+`KeyError(f"record {record_id} has no 'code' field...")`, and five new tests cover the
+type/length/minimum/empty-input boundaries the review named.
+
+**Status.** Task 2 of 8 for C2. Next: author the 30 synthetic-clean holdout records by hand
+(curation content, not code).

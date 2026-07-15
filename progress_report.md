@@ -520,3 +520,31 @@ smoke run (T5). What's left is entirely outside the session's reach: run
 `GEMINI_API_KEY=... PRICE_PER_1K_INPUT_USD=... PRICE_PER_1K_OUTPUT_USD=... uv run python -m
 ch2_adaptation.baseline --config ch2_adaptation/configs/baseline_full.yaml`, inspect the result,
 commit it, then flip C1 to `done`. Only after that may C2/C3 begin in earnest.
+
+---
+
+### Entry — C2 T1: `eval/dedup.py`, the shared normalized-code-hash primitive
+
+**What.** Added `eval/dedup.py` (`normalize_code`, `code_hash`) and its tests, per task 1 of
+`.claude/plans/06-C2-independent-eval-set.md`. This is the dedup identity both C2 (holdout
+curation) and C3 (synthetic training data) will use — case-fold, strip comments, collapse
+whitespace, then SHA-256. Lives in `eval/` (base deps only, no torch/genai) so both packages
+import the identical function rather than each rolling their own.
+
+**Why.** A single shared definition of "the same snippet" is the whole point of FR-16c: if C2 and
+C3 defined dedup differently, a snippet could count as unique to one and a duplicate to the
+other, and nobody would notice until the eval table looked wrong.
+
+**What went wrong first.** The first cut of `_strip_comments` was a plain regex —
+`re.compile(r"//.*?$|/\*.*?\*/", re.MULTILINE\|re.DOTALL)`. The dispatched `code-reviewer` caught
+that this is wrong for real Java: a string literal like `"http://example.com"` gets truncated at
+the `//` as if it were a line comment, and `"a /* b */ c"` inside a string gets treated as a block
+comment. Two snippets differing only in string content (e.g. two different URLs) would then
+normalize to the same string and **collide in `code_hash`** — a false-positive dedup that silently
+drops a genuinely distinct record. Fixed by replacing the regex with a small character-scanning
+pass that tracks string/char-literal state and only treats `//`/`/* */` as comment delimiters
+outside of a literal. Added tests for exactly this boundary (URL-in-string, `*/`-looking sequence
+inside a string, empty input) so the regression can’t come back silently.
+
+**Status.** Task 1 of 8 for C2. Next: `holdout_curator.py` core (assemble/validate/dedup/manifest)
+plus its fixture-driven tests.

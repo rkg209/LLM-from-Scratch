@@ -8,22 +8,37 @@ reserved for C4 inference / C5 comparison.
 
 from __future__ import annotations
 
+import argparse
 import hashlib
 import json
 import random
 import uuid
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from pathlib import Path
 from typing import Any
 
 from pydantic import ValidationError
 
 from ch2_adaptation.baseline import Usage
+from ch2_adaptation.config import DataGenConfig, load_data_gen_config
 from ch2_adaptation.frontier import FrontierClient
 from ch2_adaptation.schema import ReviewOutput
+from eval.config import seed_everything
 from eval.dedup import code_hash
 
 _LABEL_FIELDS = ("severity", "category", "line", "issue", "suggested_fix")
+
+# Rough, tokenizer-free estimate used only for the pre-flight budget guard (AC-3) -- good
+# enough to abort before spending a cent; the post-hoc actual_cost_usd in the provenance
+# record is what gets trusted, not this estimate.
+_CHARS_PER_TOKEN_ESTIMATE = 4
+
+# The hash-only index C2 publishes outside eval/holdout/ (see C2's plan and progress_report.md
+# for why it isn't literally named eval/holdout_hashes.txt: that prefix trips
+# leakage_guard.py's substring check even for a committed, non-holdout file). Read-only here --
+# this module never touches eval/holdout/ itself (CON-6/AC-7).
+HOLDOUT_HASHES_PATH = Path("eval/frozen_hashes.txt")
 
 BUG_INJECTION_PROMPT_TEMPLATE = """You are creating training data for a Java code-review model. \
 Given a clean Java method, introduce exactly one realistic bug, then describe it.
@@ -165,3 +180,131 @@ def build_provenance(
         val_path=val_path,
         split_seed=split_seed,
     )
+
+
+def _load_seed_pool(path: Path | str) -> list[dict[str, Any]]:
+    with Path(path).open() as handle:
+        return [json.loads(line) for line in handle if line.strip()]
+
+
+def _build_snippet_batch(pool: list[dict[str, Any]], cfg: DataGenConfig) -> list[str]:
+    selected = pool[: cfg.n_snippets]
+    return [record["code"] for record in selected for _ in range(cfg.variants_per_snippet)]
+
+
+def _load_holdout_hashes(allow_missing: bool, path: Path | str = HOLDOUT_HASHES_PATH) -> set[str]:
+    """Read the committed hash-only index -- never `eval/holdout/` itself (CON-6/AC-7).
+
+    A missing file is tolerated only when `allow_missing` (a smoke run: C2's frozen holdout
+    may not exist yet in a given session, and smoke never needs real dedup coverage to prove
+    the code path). For a real (non-smoke) run, a missing index is an error, not an empty
+    set -- silently deduping against nothing would let a holdout-colliding record land in
+    committed training data with no trace beyond a stdout line nobody reads after the fact.
+    """
+    path = Path(path)
+    if not path.exists():
+        if allow_missing:
+            print(f"[C3] {path} not found -- proceeding with an empty holdout-hash set (smoke)")
+            return set()
+        raise FileNotFoundError(
+            f"{path} not found -- a real generation run must dedup against C2's frozen "
+            "holdout hash index. Run C2's freeze step first, or point at the right path."
+        )
+    with path.open() as handle:
+        return {line.strip() for line in handle if line.strip()}
+
+
+def _estimate_preflight_cost_usd(snippets: list[str], cfg: DataGenConfig) -> float:
+    from ch2_adaptation.frontier import estimate_cost_usd
+
+    prompts = [BUG_INJECTION_PROMPT_TEMPLATE.format(code=code, context="") for code in snippets]
+    input_tokens = sum(len(prompt) for prompt in prompts) // _CHARS_PER_TOKEN_ESTIMATE
+    output_tokens = len(snippets) * cfg.max_new_tokens
+    return estimate_cost_usd(input_tokens, output_tokens)
+
+
+def _check_budget(snippets: list[str], cfg: DataGenConfig) -> float:
+    """Abort before spending a cent if the pre-flight estimate exceeds the config's cap (AC-3).
+
+    Skipped for a smoke run: the stub client makes no network call and costs nothing, so
+    there is no real budget to guard.
+    """
+    if cfg.is_smoke:
+        return 0.0
+    estimate = _estimate_preflight_cost_usd(snippets, cfg)
+    if estimate > cfg.max_budget_usd:
+        raise RuntimeError(
+            f"pre-flight cost estimate ${estimate:.2f} exceeds max_budget_usd="
+            f"${cfg.max_budget_usd:.2f} -- aborting before spending anything (AC-3). Reduce "
+            "n_snippets/variants_per_snippet, or raise max_budget_usd deliberately."
+        )
+    return estimate
+
+
+def _write_jsonl_atomic(records: list[dict[str, Any]], path: Path | str) -> None:
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_suffix(path.suffix + ".tmp")
+    with tmp.open("w") as handle:
+        for record in records:
+            handle.write(json.dumps(record) + "\n")
+    tmp.replace(path)
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="Generate synthetic (buggy Java/Spring snippet -> label) training data."
+    )
+    parser.add_argument("--config", type=Path, required=True, help="path to a YAML config")
+    return parser.parse_args()
+
+
+def main() -> None:
+    from eval.harness import write_json_atomic
+
+    args = parse_args()
+    cfg = load_data_gen_config(args.config)
+    seed_everything(cfg.seed)
+    print(f"[C3] config loaded: {args.config}")
+
+    pool = _load_seed_pool(cfg.seed_pool_path)
+    snippets = _build_snippet_batch(pool, cfg)
+    estimated_cost_usd = _check_budget(snippets, cfg)
+    print(f"[C3] requesting {len(snippets)} injections, estimated cost ${estimated_cost_usd:.4f}")
+
+    from ch2_adaptation.frontier import make_client
+
+    client = make_client(
+        cfg.frontier_provider, cfg.frontier_model_tag, cfg.temperature, cfg.max_new_tokens
+    )
+    records, usage = inject_and_label(snippets, client)
+    print(f"[C3] {len(records)}/{len(snippets)} responses passed schema validation")
+
+    holdout_hashes = _load_holdout_hashes(allow_missing=cfg.is_smoke)
+    records = dedup_against_holdout(records, holdout_hashes)
+    records = dedup_within_training_set(records)
+    print(f"[C3] {len(records)} records survive dedup against the holdout and each other")
+
+    train, val = split_train_val(records, frac=cfg.val_frac, seed=cfg.seed)
+    _write_jsonl_atomic(train, cfg.train_path)
+    _write_jsonl_atomic(val, cfg.val_path)
+
+    provenance = build_provenance(
+        frontier_model=cfg.frontier_model_tag,
+        n_requested=len(snippets),
+        n_valid=len(records),
+        estimated_cost_usd=estimated_cost_usd,
+        actual_cost_usd=usage.cost_usd,
+        train_path=cfg.train_path,
+        val_path=cfg.val_path,
+        split_seed=cfg.seed,
+    )
+    write_json_atomic(provenance.to_json(), cfg.provenance_path)
+    print(
+        f"[C3] wrote {len(train)} train / {len(val)} val records; provenance at "
+        f"{cfg.provenance_path}"
+    )
+
+
+if __name__ == "__main__":
+    main()

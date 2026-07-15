@@ -1176,3 +1176,40 @@ check on the `git commit` invocation itself. Reworded around it again, as in C1 
 **Status.** Task 5 of 8 for C2. Tasks 4 (actual mining), 7 (leakage-guard exercise, not
 GitHub-dependent), and 8 (spec/STATUS) remain open; task 6 (freeze CLI) can likely proceed the
 same way T5 did -- built and tested against fixtures, real 40-record assembly deferred.
+
+---
+
+### Entry -- C2 T6: freeze CLI path, and a real curation-content bug
+
+**What.** `_run_freeze` wires the already-tested core functions into a real CLI that assembles,
+validates, and dedupes the synthetic + mined-labeled records, then writes the staged output plus
+the committed hash-only index file C3 reads. Added `DedupReport.to_markdown()` for the report.
+A new README documents the manual move-into-frozen-directory-and-commit step.
+
+**Why the manual step exists and can't be automated here.** Verified directly against the
+leakage guard's source: writes to the frozen directory are denied unconditionally, with no
+`EVAL_CONTEXT` override at all (only reads have that escape hatch). The runbook's claim that this
+must happen outside a session isn't a guess -- it's read straight off the hook's own logic.
+
+**A real bug, caught by actually running the tool against real data, not by reading code.**
+Manually exercising `freeze` against the full 30-record synthetic set (rather than only toy
+fixtures) surfaced a genuine content problem: one hand-authored SQL-injection example turned out
+to be byte-identical, after normalization, to a record already committed in a stub file from an
+earlier spec. Left alone, the freeze step's own dedup logic would have silently absorbed this --
+dropping the synthetic count from 30 to 29 with nothing but a stdout line to notice it by, quietly
+undershooting the spec's 40-total target once mining completes. Fixed by rewriting the record to a
+different realistic scenario, same bug category and severity, different identifiers -- and
+verified programmatically (not just re-read by eye) that all 30 are now pairwise-unique and
+disjoint from every stub file. Code review, examining the same record, caught a second, smaller
+issue in it: the `line` field pointed one statement past where the actual injection happens.
+Fixed both while the record was already open.
+
+**The lesson, again:** unit tests against fixtures prove the *code* is correct; they say nothing
+about whether the *content* fed into that code is internally consistent. Only running the real
+data through the real pipeline caught this, and it would not have been caught any other way --
+not code review of `holdout_curator.py`, not the schema validator, not the dedup unit tests
+themselves (which all passed against fixtures throughout).
+
+**Status.** Task 6 of 8 for C2. Task 7 (exercise the leakage guard) is next -- not GitHub-
+dependent, purely a hook-behavior verification. Task 4 (the actual mining) and task 8
+(spec/STATUS closing) remain the true blocked/deferred items.

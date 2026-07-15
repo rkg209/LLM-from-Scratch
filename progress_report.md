@@ -742,3 +742,34 @@ is only to prove the CLI wiring itself doesn't crash and writes valid files, whi
 
 **Status.** Task 4 of 6 for C3. Next: `.gitignore` confirmation for `ch2_adaptation/data/*.jsonl`
 and a `commit_hygiene.py` sanity check.
+
+---
+
+### Entry -- C3 T5: .gitignore confirmed; commit_hygiene.py false-positive fixed
+
+**What.** Confirmed `.gitignore`'s existing `ch2_adaptation/data/*.jsonl` pattern already covers
+generated `train.jsonl`/`val.jsonl` and already excludes `data/seed_snippets/clean_pool.jsonl`
+(one directory deeper -- outside the single-level glob). No `.gitignore` change was needed.
+
+While confirming `commit_hygiene.py` still blocks a stray generated file, found it did not: its
+Python check used `path.startswith("ch2_adaptation/data/")`, a recursive match strictly broader
+than `.gitignore`'s single-level glob. That meant re-staging the already-committed
+`clean_pool.jsonl` (legitimate curation source content, committed in C3 T2) would be wrongly
+denied as if it were generated output.
+
+**Why this matters.** The hook's own docstring says it exists to catch what's actually staged
+regardless of the command line -- a false positive here doesn't just annoy, it actively
+contradicts a design decision already made and committed (`clean_pool.jsonl` living under
+`data/` on purpose, one level deep, precisely so it's distinguishable from generated output).
+
+**What happened.** Editing a hook file triggered the harness's self-modification guard --
+correctly, since this file enforces CLAUDE.md #6 and isn't something to touch on a whim. Asked
+the user directly rather than working around the block; they approved narrowing the check.
+Replaced the `startswith`/`endswith` pair with a regex anchored to match only direct children of
+`ch2_adaptation/data/`, mirroring `.gitignore` exactly. Verified both directions end-to-end
+through the actual hook script (not just the Python function): a staged `clean_pool.jsonl`-shaped
+path is no longer flagged; a staged stray `train.jsonl` is still denied with the same message as
+before.
+
+**Status.** Task 5 of 6 for C3. Next: spec/STATUS updates for C3 -- the three resolved
+clarifications, the PRICE_PER_1K amendment, and the commit_hygiene fix just made.

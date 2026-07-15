@@ -1085,3 +1085,26 @@ real tradeoff worth a doc note later, not a bug now. Both already called out in-
 
 **Status.** Task 4 of 6 for C5. Next: `evaluate.py::main()` CLI wiring and the actual smoke-run
 exercise.
+
+---
+
+### Entry -- C5 T5: evaluate.py::main() -- smoke run green end to end
+
+**What.** `make_adapter_generator` loads the base model, attaches the trained LoRA adapter, and
+returns a zero-shot generate callable. `main()` wires config -> schema-drift check (real runs
+only) -> holdout prompts -> adapter generator -> score -> atomic write. Verified live: training a
+smoke adapter then running the smoke eval config completes in ~4 seconds total, loading the real
+base model, attaching the real adapter, scoring, and writing results.
+
+**Why the model.py refactor.** Rather than duplicating the chat-template-generate-decode loop and
+the fp32/4-bit model-loading branch a second time in evaluate.py, extracted both as shared
+helpers (`generate_completions`, `load_base_model`) reused by C1's `make_hf_generator` and C4's
+`load_base_model_for_training`. Confirmed this is a pure refactor -- same argument order, same
+return shape, existing C1/C4 tests still green after the change.
+
+**Review.** One should-fix: `PeftModel.from_pretrained` relied on the library's default for
+`is_trainable` rather than stating inference-only intent explicitly. Passed `is_trainable=False`
+so a future peft version changing its default can't silently alter behavior here.
+
+**Status.** C5's code is now fully built (all 5 code tasks). Next: spec/STATUS updates -- the last
+task for C5, and the last of the four specs this session set out to build.

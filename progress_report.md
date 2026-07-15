@@ -640,3 +640,26 @@ dependency and can proceed independently — C3 formally depends only on C1. C3'
 holdout-dedup step (reading the committed hash-index file C2 task 6 will eventually produce,
 still not written since task 6 hasn't run) does not exist yet either; C3's data_gen.py will be
 built against a fixture/fake index and wired to the real file once C2 finishes.
+
+---
+
+### Entry -- C3 T1: `DataGenConfig` + smoke/full data-generation configs
+
+**What.** Added `DataGenConfig` to `ch2_adaptation/config.py` plus `datagen_smoke.yaml`/
+`datagen_full.yaml`, mirroring `BaselineConfig`'s smoke/full split: `is_smoke` keys off
+`frontier_provider == "stub"`, and a smoke run cannot write the committed
+`ch2_adaptation/data/provenance.json` (same guard shape as `_PUBLISHED_BASELINES_PATH`).
+`datagen_full.yaml` targets 150 seed snippets x 2 variants = 300 candidate records, clearing
+the ~270-train-record target after dedup/budget losses; `max_budget_usd=1.50` matches the
+plan's stated abort threshold.
+
+**Why.** Every hyperparameter must come from a YAML config (CLAUDE.md), including the dollar
+budget cap the plan states as a fixed 1.50 -- made a config field instead of a hardcoded
+constant so a future run can change the cap without a code edit.
+
+**Review.** Clean; no blocking findings. One noted (non-blocking) test gap: no explicit
+positive-case test for a mid-range `val_frac`, though the two config-loading tests cover it
+implicitly.
+
+**Status.** Task 1 of 6 for C3. Next: the ~150-entry seed snippet pool of clean Java/Spring
+methods.

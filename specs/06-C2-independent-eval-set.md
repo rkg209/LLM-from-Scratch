@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **State** | building (paused after task 3 of 8 — tasks 4-7 need `GITHUB_TOKEN`, see progress_report.md) |
+| **State** | building (6 of 8 tasks done; task 4 — mining — paused on `GITHUB_TOKEN`, see progress_report.md) |
 | **Depends on** | C1 |
 | **Requirements** | FR-16, CON-6, NFR-6, NFR-15 |
 | **W&B run** | — |
@@ -65,11 +65,12 @@ Resolved during `/plan` (full reasoning: `.claude/plans/06-C2-independent-eval-s
 See `.claude/plans/06-C2-independent-eval-set.md` for full detail. Summary:
 
 **New files** — `ch2_adaptation/src/ch2_adaptation/holdout_curator.py` (core:
-`assemble_records`, `validate_records`, `dedup_records`, `build_manifest`; CLI subcommands
-`label-mined`/`freeze` not yet built — blocked, see below); `eval/dedup.py` (shared
-`normalize_code`/`code_hash` primitive, also used by C3); `eval/staging/synthetic.jsonl` (30
-hand-authored synthetic-clean records, committed); `eval/tests/test_dedup.py`,
-`ch2_adaptation/tests/test_holdout_curator.py`.
+`assemble_records`, `validate_records`, `dedup_records`, `build_manifest`, `DedupReport.to_markdown`;
+CLI: `label-mined` and `freeze` subcommands, both built and tested — only the actual GitHub
+mining that feeds `label-mined` is blocked, not the code around it); `eval/dedup.py` (shared
+`normalize_code`/`code_hash` primitive, also used by C3); `eval/staging/{synthetic.jsonl,README.md}`
+(30 hand-authored synthetic-clean records, committed, plus the manual-freeze runbook);
+`eval/tests/test_dedup.py`, `ch2_adaptation/tests/test_holdout_curator.py`.
 
 **Key design points:**
 
@@ -79,28 +80,47 @@ hand-authored synthetic-clean records, committed); `eval/tests/test_dedup.py`,
   code review before this shipped.
 - `dedup_records` raises a record-id-bearing error on a record missing its `code` field, rather
   than a bare `KeyError` — another review-caught gap.
+- `label_mined_records` reuses the exact locked zero-shot review prompt (`prompts.format_zero_shot`)
+  C1/C4/C5 all use — no bespoke prompt for this spec — and reuses `BaselineConfig` for frontier
+  settings rather than inventing a new config schema, per the plan.
+- `_run_freeze` dedupes against `eval/stub/{stub_eval.jsonl,stub_eval_smoke.jsonl}` — the only
+  training-adjacent data that exists at freeze time (AC-4) — and writes the committed hash-only
+  index alongside the staged output.
 - The 30 synthetic records span all four severities (8 critical / 12 major / 7 minor / 3 info)
-  and 30 distinct categories, validated against `eval/schema.json` before committing.
+  and 30 distinct categories, validated against `eval/schema.json` before committing. Running the
+  real `freeze` step against all 30 (not just fixtures) caught a genuine content bug: one record
+  was a byte-identical duplicate (after normalization) of a record in `stub_eval_smoke.jsonl`,
+  which would have silently dropped the count to 29 at freeze time. Fixed by rewriting that one
+  record to a different scenario; verified all 30 are now pairwise-unique and disjoint from both
+  stub files.
+- AC-5 (leakage guard denies a Write unconditionally, denies a Read without `EVAL_CONTEXT=1`,
+  allows a Read with it) was exercised directly against the hook script with crafted payloads —
+  all four scenarios (write/no-context, read/no-context, read/context, write/context) behaved
+  exactly as the hook's source claims.
 
 ## Tasks
 
 1. ✅ `eval/dedup.py` + tests.
 2. ✅ `holdout_curator.py` core (`assemble_records`/`validate_records`/`dedup_records`/
    `build_manifest`) + tests.
-3. ✅ 30 synthetic-clean records authored and committed.
-4. ⏸ Mine 10 real records via the GitHub MCP server — **blocked**: the `github` MCP server
-   (`.mcp.json`) needs `GITHUB_TOKEN`, which is unset in this environment. Asked the user
-   directly; decision was to defer tasks 4-7 and continue with C3/C4/C5, which don't depend on
-   GitHub access.
-5. ⏸ `label-mined` CLI path — blocked on task 4 (needs the mined snippets to label).
-6. ⏸ `freeze` CLI path — blocked on tasks 4-5 (needs all 40 records to assemble).
-7. ⏸ Exercise the leakage guard (AC-5) — not actually blocked on GitHub access, but grouped with
-   4-6 in the user's deferral decision; can be picked up independently once resumed.
-8. ⏸ This spec/STATUS update — intentionally partial (this entry): describes real progress
-   through task 3, not a fabricated end state. Full closure (including the manual move-into-
-   `eval/holdout/` + commit step, run by the user outside any session, per this plan's own
-   constraint 1) waits for `GITHUB_TOKEN` and tasks 4-7.
+3. ✅ 30 synthetic-clean records authored and committed (one duplicate/one off-by-one fixed
+   during task 6's real-data exercise, see below).
+4. ⏸ Mine 10 real records via the GitHub MCP server — **the only genuinely blocked task**: the
+   `github` MCP server (`.mcp.json`) needs `GITHUB_TOKEN`; attempts to connect it during this
+   session returned `HTTP 400` even once a token was supplied, consistent with
+   `api.githubcopilot.com/mcp/` being picky about token type/account access (see
+   `progress_report.md`). Tasks 5-7 were re-scoped to proceed without this, once it became clear
+   only the actual mined *content* needs live GitHub access — the code around it doesn't.
+5. ✅ `label-mined` CLI path — `label_mined_records` + subcommand, verified end-to-end with the
+   stub client (real content still pending task 4).
+6. ✅ `freeze` CLI path — `_run_freeze` + subcommand, verified end-to-end against the real
+   30-record synthetic set (a fake mined record stood in for the still-missing real 10); caught
+   and fixed the duplicate-content bug above.
+7. ✅ Exercised the leakage guard (AC-5) directly against crafted `PreToolUse` payloads; all four
+   scenarios documented in `progress_report.md`.
+8. ✅ This spec/STATUS update.
 
-**Remaining before this spec can move to `done`:** set `GITHUB_TOKEN`, resume tasks 4-7, then the
-manual freeze (move staged output into `eval/holdout/`, commit outside a session) — exactly
-parallel in shape to C1's still-open AC-5.
+**Remaining before this spec can move to `done`:** task 4 (mine 10 real records — needs a working
+`GITHUB_TOKEN`/MCP connection, or an alternative like `gh` CLI), then run `label-mined` and
+`freeze` for real against that content, then the manual freeze (move staged output into the
+frozen directory, commit outside a session) — exactly parallel in shape to C1's still-open AC-5.

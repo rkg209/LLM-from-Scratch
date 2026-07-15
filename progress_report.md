@@ -969,3 +969,26 @@ in-training evaluation.
 **Status.** Task 5 of 6 for C4. Next: spec/STATUS updates -- record the `FinetuneConfig`
 amendments, the `trl.SFTTrainer` -> `transformers.Trainer` substitution, note the full GPU run is
 manual-only.
+
+---
+
+### Entry -- C4 T6: spec + STATUS updates; C4 complete pending the GPU run
+
+**What.** Filled in specs/08-C4-qlora-finetune.md's Amendments, Technical plan, and Tasks
+sections; moved C4 to building in STATUS.md. All six tasks (config amendment, lora.py,
+data_loader.py, model.py, finetune.py, this update) are committed.
+
+**Why.** Same reasoning as C3's T6: a spec that still reads as an empty template after real
+decisions were made and verified against a live model is misleading to whoever reads it next.
+
+**C4's code is fully built and smoke-verified**: the trainable-fraction guard, the label-masking
+Dataset, the model loader's smoke/full split, and the training loop all ran for real against the
+cached tiny model, not just against fixtures. Three real bugs were caught and fixed across this
+spec's five code tasks (a miscalibrated trainable-fraction floor, an unverified BPE prefix
+assumption, a missing eval_strategy) -- each one only surfaced because the code was actually run,
+not just read.
+
+**Status.** C4 is done except AC-2's full GPU run, which is manual-only by design (CON-4) and
+also needs C2's frozen holdout plus C3's real training data, neither of which exist yet. Moving to
+C5 (head-to-head eval table), which -- like every spec in this project -- can be built and tested
+against fixtures now, with its own real dependency chain resolved later.

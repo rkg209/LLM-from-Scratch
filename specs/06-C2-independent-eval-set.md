@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **State** | draft |
+| **State** | building (paused after task 3 of 8 — tasks 4-7 need `GITHUB_TOKEN`, see progress_report.md) |
 | **Depends on** | C1 |
 | **Requirements** | FR-16, CON-6, NFR-6, NFR-15 |
 | **W&B run** | — |
@@ -36,12 +36,71 @@ Assemble the holdout: synthetic-clean examples plus mined-real examples (real Ja
 
 ## Clarifications
 
-*(filled by `/clarify` — open questions: target size of the holdout; the synthetic/mined ratio; how ground-truth labels for the mined records are established, since real diffs do not come with `severity` and `category` fields.)*
+Resolved during `/plan` (full reasoning: `.claude/plans/06-C2-independent-eval-set.md`):
+
+- **Mined-record labels** come from the frontier API (Gemini 2.5 Flash, reusing C1's
+  `frontier.GeminiClient`), not lint-tool output or pure hand-labeling — same schema pipeline as
+  the synthetic records, small added cost against the ~$1 project budget.
+- **Target size: 40 total records, 30 synthetic / 10 mined** (nonzero mined count satisfies
+  AC-3; matches the project's existing stub-set scale).
+- **Cross-spec dedup:** C2 is built before C3, so `train.jsonl` won't exist at freeze time. C2
+  publishes a hash-only index outside `eval/holdout/` (see amendment below) that C3's
+  `data_gen.py` reads to self-exclude any colliding generated record. AC-4's own dedup, run at
+  freeze time, checks the 40 assembled records against each other and against
+  `eval/stub/{stub_eval.jsonl,stub_eval_smoke.jsonl}`.
+
+## Amendments (recorded here per plan, not applied silently)
+
+- **Staging directory is not named `eval/holdout_staging/`** as originally planned.
+  `leakage_guard.py`'s path check is a bare substring match on the `eval/holdout` prefix, with no
+  distinction between the frozen directory and a same-prefixed staging directory next to it —
+  and writes have no `EVAL_CONTEXT=1` override, ever, by design. The staging directory actually
+  used is `eval/staging/`.
+- **The committed hash-only index is not named `eval/holdout_hashes.txt`**, for the same reason.
+  It is `eval/frozen_hashes.txt` (top-level, committed, outside `eval/holdout/`) — the name C3's
+  `data_gen.py` already reads.
 
 ## Technical plan
 
-*(filled by `/plan`)*
+See `.claude/plans/06-C2-independent-eval-set.md` for full detail. Summary:
+
+**New files** — `ch2_adaptation/src/ch2_adaptation/holdout_curator.py` (core:
+`assemble_records`, `validate_records`, `dedup_records`, `build_manifest`; CLI subcommands
+`label-mined`/`freeze` not yet built — blocked, see below); `eval/dedup.py` (shared
+`normalize_code`/`code_hash` primitive, also used by C3); `eval/staging/synthetic.jsonl` (30
+hand-authored synthetic-clean records, committed); `eval/tests/test_dedup.py`,
+`ch2_adaptation/tests/test_holdout_curator.py`.
+
+**Key design points:**
+
+- `eval/dedup.py`'s comment-stripping is literal-aware (tracks string/char-literal state) rather
+  than a naive regex — a naive `//`/`/* */` regex would truncate any snippet whose string content
+  contains a comment delimiter (e.g. a URL), causing false-positive dedup collisions. Caught in
+  code review before this shipped.
+- `dedup_records` raises a record-id-bearing error on a record missing its `code` field, rather
+  than a bare `KeyError` — another review-caught gap.
+- The 30 synthetic records span all four severities (8 critical / 12 major / 7 minor / 3 info)
+  and 30 distinct categories, validated against `eval/schema.json` before committing.
 
 ## Tasks
 
-*(filled by `/tasks`)*
+1. ✅ `eval/dedup.py` + tests.
+2. ✅ `holdout_curator.py` core (`assemble_records`/`validate_records`/`dedup_records`/
+   `build_manifest`) + tests.
+3. ✅ 30 synthetic-clean records authored and committed.
+4. ⏸ Mine 10 real records via the GitHub MCP server — **blocked**: the `github` MCP server
+   (`.mcp.json`) needs `GITHUB_TOKEN`, which is unset in this environment. Asked the user
+   directly; decision was to defer tasks 4-7 and continue with C3/C4/C5, which don't depend on
+   GitHub access.
+5. ⏸ `label-mined` CLI path — blocked on task 4 (needs the mined snippets to label).
+6. ⏸ `freeze` CLI path — blocked on tasks 4-5 (needs all 40 records to assemble).
+7. ⏸ Exercise the leakage guard (AC-5) — not actually blocked on GitHub access, but grouped with
+   4-6 in the user's deferral decision; can be picked up independently once resumed.
+8. ⏸ This spec/STATUS update — intentionally partial (this entry): describes real progress
+   through task 3, not a fabricated end state. Full closure (including the manual move-into-
+   `eval/holdout/` + commit step, run by the user outside any session, per this plan's own
+   constraint 1) waits for `GITHUB_TOKEN` and tasks 4-7.
+
+**Remaining before this spec can move to `done`:** set `GITHUB_TOKEN`, resume tasks 4-7, then the
+manual freeze (move staged output into `eval/holdout/`, commit outside a session) — exactly
+parallel in shape to C1's still-open AC-5.

@@ -26,6 +26,12 @@ FORBIDDEN_SUFFIXES = (".pt", ".pth", ".bin", ".safetensors", ".gguf")
 GIT_COMMIT = re.compile(r"\bgit\b[^|;&]*\bcommit\b")
 CO_AUTHORED_BY = re.compile(r"co-authored-by\s*:", re.IGNORECASE)
 
+# Mirrors .gitignore's own `ch2_adaptation/data/*.jsonl` -- a single-level glob, not a
+# recursive one. Curation source content like `data/seed_snippets/clean_pool.jsonl` lives
+# one level deeper and is meant to be committed; a plain `startswith` check would wrongly
+# flag it as generated output.
+GENERATED_TRAINING_DATA = re.compile(r"^ch2_adaptation/data/[^/]+\.jsonl$")
+
 
 def _staged_files() -> list[str]:
     result = subprocess.run(
@@ -48,7 +54,7 @@ def _reject(path: str) -> str | None:
         return "is an .env file (secrets never go in git)"
     if normalized.endswith(FORBIDDEN_SUFFIXES) and "tests/fixtures/" not in normalized:
         return "is a model-weight or GGUF artifact (these live on HF Hub, not in git)"
-    if normalized.startswith("ch2_adaptation/data/") and normalized.endswith(".jsonl"):
+    if GENERATED_TRAINING_DATA.match(normalized):
         return "is generated training data (gitignored by design; only provenance is committed)"
 
     full = REPO_ROOT / normalized

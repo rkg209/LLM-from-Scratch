@@ -1108,3 +1108,39 @@ so a future peft version changing its default can't silently alter behavior here
 
 **Status.** C5's code is now fully built (all 5 code tasks). Next: spec/STATUS updates -- the last
 task for C5, and the last of the four specs this session set out to build.
+
+---
+
+### Entry -- C5 T6: spec + STATUS updates -- C5 code complete, session summary
+
+**What.** Filled in specs/09-C5-head-to-head-eval-table.md's Amendments, Technical plan, and
+Tasks; moved C5 to building in STATUS.md. All five code tasks committed and verified live.
+
+**Session summary.** Implemented specs C2 (independent eval set, partial: 3/8 tasks, paused on
+GITHUB_TOKEN), C3 (synthetic training data, complete), C4 (QLoRA fine-tune, complete), and C5
+(head-to-head eval table, complete). Every task followed implement -> test -> code-review ->
+fix -> commit, with a dedicated code-reviewer dispatch per task; real, non-trivial bugs were
+caught and fixed at nearly every step: a comment-stripping regex that mishandled string literals
+(C2 T1), a KeyError missing a record id (C2 T2), a naive substring match in the leakage guard
+that blocked legitimate committed content (C3 T5), a FrontierClient Protocol duplicated instead
+of reused (C3 T3), a missing holdout-index-file guard for real runs (C3 T4), a trainable-fraction
+floor miscalibrated for the smoke model's scale (C4 T2), an unverified BPE-tokenization prefix
+assumption (C4 T3), a weak bitsandbytes-absence test that wouldn't have caught a real regression
+(C4 T4), a missing eval_strategy that silently skipped validation entirely (C4 T5), redundant
+tests that re-tested already-tested code instead of the actual new logic (C5 T2), unhardened
+marker-replacement logic (C5 T3), a config bug caught by the tests before it could reach a real
+run (C5 T4), and a peft default relied on implicitly instead of stated explicitly (C5 T5).
+
+**What's genuinely done vs. deferred.** C3, C4, and C5's code is complete and smoke-verified
+end to end, including two live full-pipeline runs (train a smoke adapter, then score it) that
+produced real files, not just passing tests. What remains for all of Chapter 2 is entirely
+outside this session's reach by design: C1's full baseline run, C2's GitHub mining (blocked on a
+credential only the user can supply), C3's full data-generation run, C4's full GPU training run,
+and C5's full eval run all require either real GPU hardware, a real API key, or a real GitHub
+token -- none of which exist inside a Claude Code session, correctly, per CLAUDE.md non-negotiable
+#1 and the project's own hooks.
+
+**Status.** C3, C4, C5 are code-complete, building. C2 is paused after task 3 of 8, waiting on
+GITHUB_TOKEN. C1's AC-5 (from a prior session) is also still open. The full head-to-head table
+can be produced once all five specs' manual runs happen, in dependency order: C1's baseline,
+C2's holdout freeze, C3's data generation, C4's GPU fine-tune, C5's final scoring.

@@ -773,3 +773,28 @@ before.
 
 **Status.** Task 5 of 6 for C3. Next: spec/STATUS updates for C3 -- the three resolved
 clarifications, the PRICE_PER_1K amendment, and the commit_hygiene fix just made.
+
+---
+
+### Entry -- C3 T6: spec/STATUS updates; C2 spec brought up to date too
+
+**What.** Filled in C3's Clarifications, Amendments, Technical plan, and Tasks sections in
+`specs/07-C3-synthetic-training-data.md`, moved it to `building` in `specs/STATUS.md`. Also
+brought `specs/06-C2-independent-eval-set.md` up to date with its own resolved clarifications
+and an honest partial Tasks section (3 of 8 done, 4 blocked) rather than leaving it as bare
+placeholder text while real progress had already happened.
+
+**Why.** A spec that still reads *(filled by /clarify)* after real clarifying decisions were made
+and recorded in a `.claude/plans/*.md` file is misleading to the next person (or session) who
+reads it -- they'd have to go find the plan file to learn what was actually decided. Both specs
+now state their resolved forks and amendments directly.
+
+**C3 is fully committed** (all 6 tasks); only the manual full-generation run is left, and it has
+a real dependency C2 hasn't produced yet (`eval/frozen_hashes.txt`). **C2 stays honestly
+incomplete** in STATUS.md -- \"building (paused)\" rather than a state that implies more progress
+than actually happened.
+
+**Status.** C3 is done pending its manual full run. Moving to C4 (QLoRA fine-tune), which depends
+on C2 and C3 per `specs/STATUS.md` but -- like every other spec in this project -- its code can be
+written and tested against fixtures now, with the real dependency chain resolved later by the
+user's own hand.

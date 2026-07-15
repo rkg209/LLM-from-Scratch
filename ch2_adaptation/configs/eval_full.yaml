@@ -1,0 +1,16 @@
+# The published fine-tuned-model score: real 1.5B base + the trained LoRA adapter,
+# scored zero-shot on the frozen holdout. Requires EVAL_CONTEXT=1 to read the holdout at
+# all (the leakage guard enforces this regardless of this file). Run by hand, once C1's
+# baselines, C2's frozen holdout, and C4's full adapter all exist:
+#   EVAL_CONTEXT=1 uv run python -m ch2_adaptation.evaluate --config ch2_adaptation/configs/eval_full.yaml
+# The GPU-budget hook also blocks this file from a session (`--config .../full.yaml`
+# matches its pattern) -- correct, since this loads the real 1.5B model.
+model_tag: Qwen/Qwen2.5-Coder-1.5B-Instruct
+adapter_path: outputs/adapter
+holdout_path: eval/holdout/holdout.jsonl
+results_path: eval/results/finetuned.json
+max_new_tokens: 256
+use_4bit: true # loads the base model the same way it was trained: NF4 + double-quant
+seed: 42
+wandb_mode: online
+wandb_project: ch2-adaptation

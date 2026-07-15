@@ -1,0 +1,18 @@
+# Re-runs baseline.py (unmodified -- BaselineConfig.stub_set_path just points somewhere
+# else) against the frozen holdout instead of the C1 stub set, so the base-model and
+# frontier-API rows in C5's eval table are measured on the identical set the fine-tuned
+# model is. Requires EVAL_CONTEXT=1 to read the holdout; run by hand, before eval_full.yaml:
+#   EVAL_CONTEXT=1 GEMINI_API_KEY=... uv run python -m ch2_adaptation.baseline \
+#     --config ch2_adaptation/configs/baseline_holdout.yaml
+base_model_tag: Qwen/Qwen2.5-Coder-1.5B-Instruct
+frontier_provider: gemini
+frontier_model_tag: gemini-2.5-flash
+stub_set_path: eval/holdout/holdout.jsonl
+results_path: eval/results/baselines_holdout.json
+max_new_tokens: 256
+temperature: 0.0
+n_few_shot: 3
+use_4bit: false
+seed: 42
+wandb_mode: online
+wandb_project: ch2-adaptation

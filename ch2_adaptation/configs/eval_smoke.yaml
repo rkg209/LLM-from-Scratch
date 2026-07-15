@@ -1,0 +1,12 @@
+# CI-safe smoke profile -- never touches the holdout, no EVAL_CONTEXT needed. Proves
+# load base model -> attach adapter -> generate zero-shot -> score -> atomic write, in
+# seconds. Scores against the stub smoke set, not eval/holdout/holdout.jsonl.
+model_tag: trl-internal-testing/tiny-Qwen2ForCausalLM-2.5
+adapter_path: outputs/adapter-smoke
+holdout_path: eval/stub/stub_eval_smoke.jsonl
+results_path: outputs/finetuned-smoke.json
+max_new_tokens: 32
+use_4bit: false
+seed: 42
+wandb_mode: disabled
+wandb_project: ch2-adaptation

@@ -50,3 +50,13 @@ def test_frontier_provider_selects_smoke_vs_full() -> None:
     smoke = load_baseline_config(CONFIGS / "baseline_smoke.yaml")
     assert full.frontier_provider == "gemini"
     assert smoke.frontier_provider == "stub"
+
+
+def test_baseline_holdout_profile_scores_the_frozen_holdout_not_the_stub_set() -> None:
+    """spec C5: re-scoring base/frontier on the identical set the fine-tuned model is
+    scored on is just a new config -- baseline.py itself needs no changes."""
+    config = load_baseline_config(CONFIGS / "baseline_holdout.yaml")
+
+    assert config.stub_set_path == "eval/holdout/holdout.jsonl"
+    assert config.base_model_tag == LOCKED_MODEL_TAG
+    assert config.results_path != "eval/results/baselines.json"

@@ -164,3 +164,54 @@ class DataGenConfig:
 
 def load_data_gen_config(path: Path | str) -> DataGenConfig:
     return _load_config(path, DataGenConfig)
+
+
+# eval/results/finetuned.json is the committed, published fine-tuned-model score (spec
+# C5). A smoke run must never overwrite it with output from SMOKE_MODEL_TAG -- same shape
+# as _PUBLISHED_BASELINES_PATH/_PUBLISHED_PROVENANCE_PATH above.
+_PUBLISHED_FINETUNED_RESULTS_PATH = "eval/results/finetuned.json"
+
+
+@dataclass(frozen=True)
+class EvaluateConfig:
+    model_tag: str
+    adapter_path: str
+    holdout_path: str
+    results_path: str
+    max_new_tokens: int
+    use_4bit: bool
+    seed: int
+    wandb_mode: str
+    wandb_project: str
+
+    def __post_init__(self) -> None:
+        if self.is_smoke:
+            if self.model_tag != SMOKE_MODEL_TAG:
+                raise ValueError(
+                    f"smoke eval runs are only allowed to use {SMOKE_MODEL_TAG!r}, got "
+                    f"{self.model_tag!r}. Smoke proves the code path, not the number."
+                )
+            if (
+                Path(self.results_path).resolve()
+                == Path(_PUBLISHED_FINETUNED_RESULTS_PATH).resolve()
+            ):
+                raise ValueError(
+                    f"a smoke run must never write {_PUBLISHED_FINETUNED_RESULTS_PATH!r} — "
+                    "that is the committed, published result. Point results_path at a "
+                    "gitignored path under outputs/ instead."
+                )
+        elif self.model_tag != LOCKED_MODEL_TAG:
+            raise ValueError(
+                f"base model is locked to {LOCKED_MODEL_TAG!r} (CON-11), got "
+                f"{self.model_tag!r}. Changing it invalidates every measured comparison — "
+                "update spec C1 first."
+            )
+
+    @property
+    def is_smoke(self) -> bool:
+        """fp32 on CPU with the tiny stand-in; no 4-bit, no real adapter needed."""
+        return not self.use_4bit
+
+
+def load_evaluate_config(path: Path | str) -> EvaluateConfig:
+    return _load_config(path, EvaluateConfig)

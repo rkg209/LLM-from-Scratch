@@ -18,11 +18,13 @@ The chapters share a narrative, not a model. Chapter 1 proves understanding on a
 
 **Chapter 2 — head-to-head on the frozen holdout set** *(spec C5)*
 
-| System | Schema-validity rate | Bug-catch rate |
-|---|---|---|
-| Fine-tuned (QLoRA) | — | — |
-| Base model (zero-shot) | — | — |
-| Frontier API (3-shot) | — | — |
+<!-- EVAL_TABLE_START -->
+| System | Schema-validity | Bug-catch | n |
+|---|---|---|---|
+| Fine-tuned (QLoRA, Qwen2.5-Coder-1.5B) | — | — | — |
+| Base model (zero-shot) | — | — | — |
+| Frontier API (3-shot) | — | — | — |
+<!-- EVAL_TABLE_END -->
 
 **Chapter 1 — speedup and quantization cost** *(spec A5)*
 

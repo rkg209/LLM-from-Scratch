@@ -8,9 +8,14 @@ import json
 from pathlib import Path
 
 import pytest
-from ch2_adaptation.evaluate import score_adapter_on_holdout, verify_schema_unchanged
+from ch2_adaptation.evaluate import (
+    render_table,
+    score_adapter_on_holdout,
+    update_readme_results_section,
+    verify_schema_unchanged,
+)
 
-from eval.harness import DEFAULT_SCHEMA_PATH
+from eval.harness import DEFAULT_SCHEMA_PATH, EvalResult
 
 HOLDOUT = [
     {"id": "a", "code": "...", "line": 10},
@@ -75,3 +80,87 @@ def test_verify_schema_unchanged_raises_a_clear_error_for_a_missing_schema_path(
     missing = tmp_path / "no_such_schema.json"
     with pytest.raises(FileNotFoundError, match="cannot verify AC-8"):
         verify_schema_unchanged("irrelevant", schema_path=missing)
+
+
+# The eval-table skill's own literal example table, byte-for-byte -- render_table's
+# output must match this shape exactly, not just "look similar."
+_SKILL_EXAMPLE_TABLE = (
+    "| System | Schema-validity | Bug-catch | n |\n"
+    "|---|---|---|---|\n"
+    "| Fine-tuned (QLoRA, Qwen2.5-Coder-1.5B) | 0.94 | 0.61 | 120 |\n"
+    "| Base model (zero-shot) | 0.38 | 0.44 | 120 |\n"
+    "| Frontier API (3-shot) | 0.97 | 0.72 | 120 |"
+)
+
+
+def test_render_table_matches_the_eval_table_skills_example_exactly() -> None:
+    finetuned = EvalResult(0.94, 0.61, 120, 113, 73, [])
+    base = EvalResult(0.38, 0.44, 120, 46, 53, [])
+    frontier = EvalResult(0.97, 0.72, 120, 116, 86, [])
+
+    table = render_table(finetuned, base, frontier)
+
+    assert table == _SKILL_EXAMPLE_TABLE
+
+
+def test_render_table_states_n_for_every_row() -> None:
+    result = EvalResult(1.0, 1.0, 7, 7, 7, [])
+    table = render_table(result, result, result)
+
+    assert table.count("| 7 |") == 3
+
+
+def test_update_readme_results_section_replaces_between_markers(tmp_path: Path) -> None:
+    readme = tmp_path / "README.md"
+    readme.write_text(
+        "# Title\n\nBefore.\n\n<!-- EVAL_TABLE_START -->\nold table\n"
+        "<!-- EVAL_TABLE_END -->\n\nAfter.\n"
+    )
+
+    update_readme_results_section("new table", readme)
+
+    content = readme.read_text()
+    assert "old table" not in content
+    assert "new table" in content
+    assert content.startswith("# Title\n\nBefore.\n\n<!-- EVAL_TABLE_START -->\nnew table\n")
+    assert content.endswith("<!-- EVAL_TABLE_END -->\n\nAfter.\n")
+
+
+def test_update_readme_results_section_is_idempotent(tmp_path: Path) -> None:
+    readme = tmp_path / "README.md"
+    readme.write_text("<!-- EVAL_TABLE_START -->\nfirst\n<!-- EVAL_TABLE_END -->\n")
+
+    update_readme_results_section("second", readme)
+    update_readme_results_section("third", readme)
+
+    content = readme.read_text()
+    assert content.count("<!-- EVAL_TABLE_START -->") == 1
+    assert "second" not in content
+    assert "third" in content
+
+
+def test_update_readme_results_section_raises_if_markers_missing(tmp_path: Path) -> None:
+    readme = tmp_path / "README.md"
+    readme.write_text("# No markers here\n")
+
+    with pytest.raises(ValueError, match="marker pair"):
+        update_readme_results_section("table", readme)
+
+
+def test_update_readme_results_section_raises_on_duplicate_markers(tmp_path: Path) -> None:
+    readme = tmp_path / "README.md"
+    readme.write_text(
+        "<!-- EVAL_TABLE_START -->\na\n<!-- EVAL_TABLE_END -->\n"
+        "<!-- EVAL_TABLE_START -->\nb\n<!-- EVAL_TABLE_END -->\n"
+    )
+
+    with pytest.raises(ValueError, match="exactly one"):
+        update_readme_results_section("table", readme)
+
+
+def test_update_readme_results_section_raises_if_markers_are_reversed(tmp_path: Path) -> None:
+    readme = tmp_path / "README.md"
+    readme.write_text("<!-- EVAL_TABLE_END -->\n<!-- EVAL_TABLE_START -->\n")
+
+    with pytest.raises(ValueError, match="malformed"):
+        update_readme_results_section("table", readme)

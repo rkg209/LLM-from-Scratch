@@ -52,3 +52,54 @@ def verify_schema_unchanged(
             f"{recorded_sha256}, got {current_sha256}. Re-measure the baselines before "
             "comparing any system against a changed schema."
         )
+
+
+# The exact row order and column set the eval-table skill locks (README.md's rendered
+# table). Every sample counts in `n` (AC-2/AC-6) -- nothing gets excluded from the count.
+_SYSTEM_LABELS = (
+    ("Fine-tuned (QLoRA, Qwen2.5-Coder-1.5B)", "finetuned"),
+    ("Base model (zero-shot)", "base"),
+    ("Frontier API (3-shot)", "frontier"),
+)
+
+README_EVAL_TABLE_START = "<!-- EVAL_TABLE_START -->"
+README_EVAL_TABLE_END = "<!-- EVAL_TABLE_END -->"
+
+
+def render_table(finetuned: EvalResult, base: EvalResult, frontier: EvalResult) -> str:
+    """The exact markdown shape the eval-table skill locks: one row per system, `n`
+    always stated so a reader can judge the noise."""
+    results = {"finetuned": finetuned, "base": base, "frontier": frontier}
+    lines = ["| System | Schema-validity | Bug-catch | n |", "|---|---|---|---|"]
+    for label, key in _SYSTEM_LABELS:
+        result = results[key]
+        lines.append(
+            f"| {label} | {result.schema_validity_rate:.2f} | "
+            f"{result.bug_catch_rate:.2f} | {result.n_samples} |"
+        )
+    return "\n".join(lines)
+
+
+def update_readme_results_section(table_md: str, readme_path: Path | str) -> None:
+    """Replace the content between the README's marker comments with `table_md`.
+
+    Idempotent by construction: re-running `/eval` regenerates the section from the
+    markers outward, rather than appending or drifting on repeated runs (AC-3, AC-5).
+    """
+    readme_path = Path(readme_path)
+    content = readme_path.read_text()
+    if content.count(README_EVAL_TABLE_START) != 1 or content.count(README_EVAL_TABLE_END) != 1:
+        raise ValueError(
+            f"{readme_path} must contain exactly one {README_EVAL_TABLE_START!r}/"
+            f"{README_EVAL_TABLE_END!r} marker pair -- add it once, by hand, before this "
+            "can update the section automatically."
+        )
+    if content.index(README_EVAL_TABLE_START) > content.index(README_EVAL_TABLE_END):
+        raise ValueError(
+            f"{readme_path}: {README_EVAL_TABLE_END!r} appears before "
+            f"{README_EVAL_TABLE_START!r} -- the marker pair is malformed."
+        )
+    before, _, rest = content.partition(README_EVAL_TABLE_START)
+    _, _, after = rest.partition(README_EVAL_TABLE_END)
+    new_content = f"{before}{README_EVAL_TABLE_START}\n{table_md}\n{README_EVAL_TABLE_END}{after}"
+    readme_path.write_text(new_content)

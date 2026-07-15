@@ -992,3 +992,17 @@ not just read.
 also needs C2's frozen holdout plus C3's real training data, neither of which exist yet. Moving to
 C5 (head-to-head eval table), which -- like every spec in this project -- can be built and tested
 against fixtures now, with its own real dependency chain resolved later.
+
+---
+
+### Entry -- C5 T1: schema_sha256 test coverage
+
+**What.** `build_baselines_doc` already writes `schema_sha256` (added ahead of time in C1 T5,
+anticipating this exact requirement) but had no dedicated test. Added one confirming the
+recorded hash matches `eval/schema.json`'s real SHA-256.
+
+**Why.** AC-8 needs this field to be trustworthy, not merely present -- a test that only checked
+`"schema_sha256" in doc` would pass even if the field held a wrong or stale hash.
+
+**Status.** Task 1 of 6 for C5, already substantially satisfied by prior work. Next:
+`evaluate.py::score_adapter_on_holdout` + `verify_schema_unchanged`, driven by fakes.

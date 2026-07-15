@@ -816,3 +816,45 @@ for `BaselineConfig`. Applying the same fix mechanically rather than re-deciding
 
 **Status.** Task 1 of 6 for C4. Next: `lora.py` (`build_lora_config`, `attach_lora` with the
 trainable-fraction guard).
+
+---
+
+### Entry -- C4 T2: `lora.py` -- build_lora_config, attach_lora, trainable-fraction guard
+
+**What.** `build_lora_config` applies the locked recipe from whatever `FinetuneConfig` is passed
+(smoke's r=4 or full's r=16). `attach_lora` calls `peft.get_peft_model`, logs trainable params,
+then `check_trainable_fraction` raises if the result is outside an expected range -- AC-3's "the
+run must be stopped" requirement.
+
+**Why.** A LoRA attach that silently degenerates into full fine-tuning (every parameter
+trainable) is exactly the kind of failure that must stop the run outright, not just print a
+number nobody reads.
+
+**Two real issues, both caught before this shipped, one of them serious.**
+
+1. **The floor was miscalibrated and would have broken every smoke run.** The first cut set
+   `_TRAINABLE_FRACTION_MIN = 0.001` (0.1%), reasoning from the full recipe's ~0.5% figure. Code
+   review flagged this as worth actually measuring rather than trusting the arithmetic. Ran the
+   real smoke attach (`AutoModelForCausalLM.from_pretrained(SMOKE_MODEL_TAG)` + the locked
+   recipe) and got **0.018% trainable** -- below the floor. The reason: the same four target
+   modules are a *larger proportional share* of a ~2.4M-parameter tiny model than of the full
+   1.5B model, but still tiny in absolute count, so the two model scales don't share a
+   calibration point. Left as originally written, `attach_lora` would have raised on every
+   correct smoke run -- a false-positive "stop the run" on code that was actually fine. Lowered
+   the floor to 0.001% and added a regression test against the real cached model that locks in
+   the measured margin, so this can't silently regress again.
+2. **`Any`-typed signatures on peft-touching functions** defeated static type checking for no
+   real reason -- `TYPE_CHECKING`-gated imports give real hints (`torch.nn.Module`, `LoraConfig`,
+   `PeftModel`) without paying for the import at runtime.
+
+**A test that turned out to test something impossible.** The original plan for this task
+(mirroring the C4 plan's own wording) was "attach_lora raises on a mock 100%-trainable model."
+Building that test empirically showed `peft.get_peft_model` freezes every non-LoRA parameter
+itself, regardless of the base model's state beforehand -- there is no way to reach "100%
+trainable" through the normal attach path just by skipping a freeze step. Replaced with a
+realistic alternative trigger: `target_modules` misconfigured to also cover a large non-attention
+layer, which does push the fraction to ~93% and does trigger the guard -- a more honest test of
+what could actually go wrong.
+
+**Status.** Task 2 of 6 for C4. Next: `data_loader.py` (`format_prompt`, `ReviewDataset` with the
+label-masking assertion AC-4 requires).

@@ -927,3 +927,45 @@ regression. Only actively intercepting the exact call the buggy code path would 
 
 **Status.** Task 4 of 6 for C4. Next: finetune.py::main() -- wire ReviewDataset, the model
 loader, LoRA, and trl.SFTTrainer into a real (if tiny) training loop.
+
+---
+
+### Entry -- C4 T5: finetune.py::main() -- real training loop, smoke green
+
+**What.** `main()`'s scaffold body is now a real QLoRA training loop: load model/tokenizer ->
+attach LoRA -> `ReviewDataset` for train and val -> `Trainer` -> save the adapter. Smoke run
+completes in ~2 seconds wall clock (well under the 120s budget), prints the trainable-parameter
+fraction, and produces a real adapter directory.
+
+**A mid-flight substitution, verified rather than assumed.** The plan named `trl.SFTTrainer`.
+Building against it directly (not just reading its docs) showed the installed trl (1.8.0)
+requires `train_dataset` to expose `.column_names` -- i.e. a real `datasets.Dataset`, not the
+hand-tokenized, pre-masked map-style `ReviewDataset` already built and committed in task 3.
+Constructing `SFTTrainer` against it raised `AttributeError: 'ReviewDataset' object has no
+attribute 'column_names'`, confirmed directly rather than inferred from a version number.
+Substituted plain `transformers.Trainer` + `DataCollatorForSeq2Seq(..., label_pad_token_id=-100)`,
+verified to train successfully against the same objects and to preserve the `-100` masking
+`ReviewDataset` already computes.
+
+**Two config additions, not originally specified.** `train_path`/`val_path`/`wandb_mode` were
+missing from `FinetuneConfig` -- the plan never named where the training JSONL comes from as a
+config field. Added them, mirroring `DataGenConfig`'s and `BaselineConfig`'s existing patterns.
+Also added a small committed `data/finetune_smoke/{train,val}.jsonl` fixture (4 hand-authored
+records) so the smoke run is self-contained and doesn't depend on a prior `data_gen` smoke run
+having produced its own gitignored output first.
+
+**What the code review caught.** `eval_dataset` was wired into the `Trainer` constructor, but
+`TrainingArguments` never set an `eval_strategy` (defaults to `"no"`), so `config.val_path` was
+loaded and tokenized but genuinely never evaluated -- no `eval_loss` was ever computed or logged,
+contradicting the module's own docstring claim that validation came from `val_path`. This
+under-delivers on NFR-16 ("W&B logging on every train/eval run") in a way that's easy to miss
+since nothing crashes -- the run just silently skips half its own stated job. Fixed with
+`eval_strategy="steps", eval_steps=config.max_steps` (evaluates once, at the end, for any step
+count). Added a regression test that inspects `trainer.state.log_history` for an `eval_loss`
+entry after `trainer.train()` alone -- deliberately not calling `trainer.evaluate()` directly in
+the test, since that would pass even without the fix and prove nothing about automatic
+in-training evaluation.
+
+**Status.** Task 5 of 6 for C4. Next: spec/STATUS updates -- record the `FinetuneConfig`
+amendments, the `trl.SFTTrainer` -> `transformers.Trainer` substitution, note the full GPU run is
+manual-only.

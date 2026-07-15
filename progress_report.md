@@ -707,3 +707,38 @@ meaningful (each "never hand-repair" test constructs a genuinely malformed paylo
 the record is dropped, not patched); `split_train_val` confirmed lossless and reproducible.
 
 **Status.** Task 3 of 6 for C3. Next: `data_gen.py::main()` wiring -- budget guard, smoke path.
+
+---
+
+### Entry -- C3 T4: `data_gen.py::main()` wiring, budget guard, green smoke run
+
+**What.** Wired the full pipeline into `main()`: load seed pool -> build snippet batch ->
+pre-flight budget check -> inject-and-label -> dedup against holdout hashes -> dedup within the
+set -> seeded split -> atomic JSONL writes -> provenance. `uv run python -m ch2_adaptation.data_gen
+--config ch2_adaptation/configs/datagen_smoke.yaml` runs in well under a second, needs no
+`GEMINI_API_KEY`, and writes only under gitignored `outputs/`.
+
+**Why.** AC-3's budget guard has to run *before* any network call, not after -- an abort that
+happens after the API has already been billed defeats the point. `_check_budget` is called
+before `make_client`/`inject_and_label` in `main()`'s body, confirmed by the reviewer's read of
+the call order.
+
+**A real gap the review caught.** `_load_holdout_hashes` originally tolerated a missing hash-index
+file unconditionally -- including for a real, non-smoke run. That's fine for a smoke run against a
+tiny stub client, but for a real run it means a misconfigured path (typo, wrong environment, file
+not yet published) would silently dedup against an empty set: a holdout-colliding record could
+land in committed `train.jsonl`/`val.jsonl` with nothing but an easy-to-miss `print` line as
+evidence. Fixed by gating the tolerance on `cfg.is_smoke`: a real run now raises
+`FileNotFoundError` outright if the index is missing, rather than proceeding on a silently empty
+dedup set. Added tests for both branches (raises when not allowed and missing; returns empty set
+when allowed and missing; reads correctly when present).
+
+**A smoke-run detail worth recording so it isn't mistaken for a bug later:** the live smoke run
+produces 0 train / 0 val records, and that's expected -- `StubFrontierClient`'s canned response
+(shared with C1's `baseline.py`, whose schema forbids extra keys) has no `code` field, so
+`inject_and_label` correctly drops every response. The success path (records surviving
+validation) is already covered by `test_data_gen.py`'s fake-client tests; the live smoke run's job
+is only to prove the CLI wiring itself doesn't crash and writes valid files, which it does.
+
+**Status.** Task 4 of 6 for C3. Next: `.gitignore` confirmation for `ch2_adaptation/data/*.jsonl`
+and a `commit_hygiene.py` sanity check.

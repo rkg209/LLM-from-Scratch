@@ -13,7 +13,9 @@ from typing import TYPE_CHECKING
 from ch2_adaptation.baseline import Generator
 
 if TYPE_CHECKING:
-    from ch2_adaptation.config import BaselineConfig
+    from transformers import PreTrainedModel, PreTrainedTokenizerBase
+
+    from ch2_adaptation.config import BaselineConfig, FinetuneConfig
 
 
 def make_hf_generator(cfg: BaselineConfig) -> Generator:
@@ -53,3 +55,41 @@ def make_hf_generator(cfg: BaselineConfig) -> Generator:
         return outputs
 
     return generate
+
+
+def load_base_model_for_training(
+    config: FinetuneConfig,
+) -> tuple[PreTrainedModel, PreTrainedTokenizerBase]:
+    """Load the base model + tokenizer for the QLoRA fine-tune (spec C4).
+
+    Smoke branch: `torch.float32`, `device_map="cpu"`. `bitsandbytes` is a Linux-only extra
+    (this dev machine is Darwin) -- its import must stay inside the `if config.use_4bit`
+    branch below so the smoke path never touches it, even indirectly via
+    `transformers.BitsAndBytesConfig`.
+
+    Full branch: 4-bit NF4 + double-quant + bf16 compute, `device_map="auto"` -- the locked
+    recipe from the `qlora-recipe` skill.
+    """
+    import torch
+    from transformers import AutoModelForCausalLM, AutoTokenizer
+
+    tokenizer = AutoTokenizer.from_pretrained(config.model_tag)
+
+    if config.use_4bit:
+        from transformers import BitsAndBytesConfig
+
+        quantization_config = BitsAndBytesConfig(
+            load_in_4bit=True,
+            bnb_4bit_quant_type="nf4",
+            bnb_4bit_compute_dtype=torch.bfloat16,
+            bnb_4bit_use_double_quant=True,
+        )
+        model = AutoModelForCausalLM.from_pretrained(
+            config.model_tag, quantization_config=quantization_config, device_map="auto"
+        )
+    else:
+        model = AutoModelForCausalLM.from_pretrained(
+            config.model_tag, dtype=torch.float32, device_map="cpu"
+        )
+
+    return model, tokenizer

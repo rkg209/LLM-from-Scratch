@@ -611,3 +611,32 @@ Described the rename without the literal string instead of fighting the hook.
 
 **Status.** Task 3 of 8 for C2. This directory rename is a plan amendment, to be recorded formally
 in the spec at task 8. Next: mine 10 real records via the GitHub MCP server.
+
+---
+
+### Entry — C2 T4-T7 deferred: GitHub MCP has no token
+
+**What.** Attempted to start task 4 (mine 10 real Java/Spring records via the GitHub MCP server).
+`claude mcp list` shows the `github` server failing to connect: `.mcp.json` declares it with
+`Authorization: Bearer ${GITHUB_TOKEN}`, and `GITHUB_TOKEN` is unset in this environment. With no
+connected server, there is no way to run the interactive mining step task 4 requires.
+
+**Why this couldn't be worked around.** Hand-writing 10 more records and labeling them "mined"
+would misrepresent their provenance — the whole point of the mined third of the holdout is that
+it is *real* code with *real* history, not another synthetic snippet with a fabricated source
+repo/license/commit URL. That would violate CLAUDE.md's honest-metrics rule for no real benefit:
+a fake "mined" record teaches the eval table nothing a synthetic one doesn't already cover, while
+quietly lying about what was actually done.
+
+**Decision (asked the user directly).** Given the choice between (a) waiting for `GITHUB_TOKEN`,
+(b) deferring T4-T7 and moving on to C3/C4/C5 (none of which touch GitHub), or (c) amending the
+spec to drop mined records to zero, the user chose (b): defer, keep building. `specs/STATUS.md`
+should **not** move C2 past its current point — it stays with 30/40 synthetic records committed,
+tasks 1-3 done, tasks 4-7 blocked on `GITHUB_TOKEN`, task 8 (spec/STATUS update) also deferred
+since it should describe the real end state, not a partial one.
+
+**Status.** C2 paused after task 3. Resuming C3 (synthetic training data), which has no GitHub
+dependency and can proceed independently — C3 formally depends only on C1. C3's own hash-based
+holdout-dedup step (reading the committed hash-index file C2 task 6 will eventually produce,
+still not written since task 6 hasn't run) does not exist yet either; C3's data_gen.py will be
+built against a fixture/fake index and wired to the real file once C2 finishes.

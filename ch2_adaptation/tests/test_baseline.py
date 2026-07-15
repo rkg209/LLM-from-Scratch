@@ -104,6 +104,24 @@ def test_build_baselines_doc_records_frontier_usage_honestly() -> None:
     assert doc["frontier_api"]["cost_usd"] == 0.0
 
 
+def test_build_baselines_doc_records_the_schema_hash() -> None:
+    """AC-8 (spec C5): `schema_sha256` is what a later run checks against, to confirm
+    eval/schema.json hasn't changed since the baselines were measured."""
+    import hashlib
+
+    from eval.harness import DEFAULT_SCHEMA_PATH
+
+    cfg = load_baseline_config(CONFIGS / "baseline_full.yaml")
+    result = EvalResult(1.0, 1.0, 1, 1, 1, [])
+    usage = Usage(0, 0, 0.0, "free")
+
+    doc = build_baselines_doc(result, result, cfg, usage)
+
+    expected = hashlib.sha256(Path(DEFAULT_SCHEMA_PATH).read_bytes()).hexdigest()
+    assert doc["schema_sha256"] == expected
+    assert len(doc["schema_sha256"]) == 64
+
+
 def test_build_baselines_doc_hashes_change_with_stub_config(tmp_path: Path) -> None:
     cfg = load_baseline_config(CONFIGS / "baseline_smoke.yaml")
     other_stub = tmp_path / "other.jsonl"

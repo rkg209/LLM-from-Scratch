@@ -895,3 +895,35 @@ attention-mask/full-mask-then-real-tokens structure, which the decode test doesn
 
 **Status.** Task 3 of 6 for C4. Next: `model.py::load_base_model_for_training` (smoke fp32/CPU
 and full 4-bit/GPU branches).
+
+---
+
+### Entry -- C4 T4: model.py::load_base_model_for_training
+
+**What.** Added the smoke (fp32/CPU) and full (4-bit NF4/GPU) branches for loading the base
+model for training, matching the qlora-recipe skill's locked BitsAndBytesConfig snippet
+field-for-field. Verified live against the real cached SMOKE_MODEL_TAG that the smoke branch
+loads correctly and never touches bitsandbytes.
+
+**Why.** bitsandbytes is a Linux-only extra and this dev machine is Darwin -- the import must
+stay inside the use_4bit branch so the smoke path, which every session actually runs, never
+hits it.
+
+**The bitsandbytes-absence test went through two attempts before the review-caught weakness was
+actually fixed.** First cut: pop \"bitsandbytes\" from sys.modules, call the function, assert it's
+still absent. Review correctly flagged this as order-dependent -- it only checks a final state,
+not whether the code path was actually exercised. Second attempt: patch builtins.__import__ to
+raise on \"bitsandbytes\". Manual verification (forcing the 4-bit branch by hand) showed this
+doesn't work either -- transformers checks bitsandbytes availability via
+importlib.util.find_spec, which never calls __import__, so the patch silently failed to
+intercept anything. Third attempt, the one that shipped: patch transformers.BitsAndBytesConfig
+itself to raise if constructed -- tied directly to the class the 4-bit branch actually imports
+and builds. Verified by hand both that it fires when the 4-bit branch is forced (with the real
+1.5B model tag, guard raised as expected) and stays silent on the real smoke path.
+
+**The lesson:** a test that passively checks state afterward can look like it tests the thing
+and not test it at all; the first two attempts here both would have stayed green through a real
+regression. Only actively intercepting the exact call the buggy code path would make catches it.
+
+**Status.** Task 4 of 6 for C4. Next: finetune.py::main() -- wire ReviewDataset, the model
+loader, LoRA, and trl.SFTTrainer into a real (if tiny) training loop.

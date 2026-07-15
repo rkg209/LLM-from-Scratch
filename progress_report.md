@@ -663,3 +663,23 @@ implicitly.
 
 **Status.** Task 1 of 6 for C3. Next: the ~150-entry seed snippet pool of clean Java/Spring
 methods.
+
+---
+
+### Entry -- C3 T2: 150-entry clean seed snippet pool
+
+**What.** Added `ch2_adaptation/data/seed_snippets/clean_pool.jsonl` (150 bug-free Java/Spring
+methods) and its README. Templated over 11 method shapes x 15 domain entities rather than
+hand-writing 150 independent snippets -- each combination produces different field names,
+repository calls, and logic shape, not a cosmetic rename of the same code.
+
+**Why.** `data_gen.py` needs raw clean material to inject bugs into; templating was the only way
+to reach 150 genuinely distinct entries without spending disproportionate effort relative to the
+rest of C3.
+
+**Verification.** Confirmed all 150 normalized code hashes are distinct, and confirmed zero hash
+overlap against `eval/stub/stub_eval.jsonl` and C2's 30 synthetic holdout records -- this pool
+must never accidentally already contain something the holdout or stub set uses.
+
+**Status.** Task 2 of 6 for C3. Next: `data_gen.py` core (inject_and_label, dedup, split,
+provenance) driven by a fake frontier client.

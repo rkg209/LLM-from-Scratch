@@ -34,7 +34,10 @@ class FinetuneConfig:
     learning_rate: float
     use_4bit: bool
     seed: int
+    train_path: str
+    val_path: str
     output_dir: str
+    wandb_mode: str
     wandb_project: str
 
     def __post_init__(self) -> None:

@@ -1,0 +1,1 @@
+{"code": "public String firstOrDefault(List<String> items) {\n    return items.get(0);\n}", "context": "ListUtils, a small helper.", "severity": "major", "category": "index-out-of-bounds", "line": 2, "issue": "items.get(0) throws IndexOutOfBoundsException if items is empty.", "suggested_fix": "Check items.isEmpty() first and return a default value."}

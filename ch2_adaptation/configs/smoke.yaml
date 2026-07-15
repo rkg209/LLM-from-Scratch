@@ -17,5 +17,8 @@ batch_size: 1
 learning_rate: 0.0002
 use_4bit: false # bitsandbytes needs CUDA; the smoke path is fp32 on CPU
 seed: 42
+train_path: ch2_adaptation/data/finetune_smoke/train.jsonl
+val_path: ch2_adaptation/data/finetune_smoke/val.jsonl
 output_dir: outputs/adapter-smoke
+wandb_mode: disabled
 wandb_project: ch2-adaptation

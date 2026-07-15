@@ -15,5 +15,8 @@ batch_size: 4
 learning_rate: 0.0002
 use_4bit: true # NF4 + double-quant + bf16 compute
 seed: 42
+train_path: ch2_adaptation/data/train.jsonl
+val_path: ch2_adaptation/data/val.jsonl
 output_dir: outputs/adapter
+wandb_mode: online
 wandb_project: ch2-adaptation

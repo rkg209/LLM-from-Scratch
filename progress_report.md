@@ -1056,3 +1056,32 @@ count and ordering checks, with tests for both failure modes.
 
 **Status.** Task 3 of 6 for C5. Next: the three new configs (eval_smoke.yaml, eval_full.yaml,
 baseline_holdout.yaml) with the smoke path exercised in-session.
+
+---
+
+### Entry -- C5 T4: EvaluateConfig + three new configs
+
+**What.** Added `EvaluateConfig` (mirroring `BaselineConfig`'s smoke/full split) plus
+`eval_smoke.yaml`, `eval_full.yaml`, and `baseline_holdout.yaml`. The last re-runs the existing,
+unmodified `baseline.py` against the frozen holdout instead of the stub set -- writing to a
+separate results file rather than overwriting C1's already-published stub-set baselines.
+
+**Why.** Re-scoring the base model and frontier API on the identical set the fine-tuned model
+is scored on is just a new config; no code changes to `baseline.py` were needed, matching the
+plan's key reuse decision.
+
+**A real bug caught by running the tests, not by reading the YAML.** The first draft of the
+full eval config set `use_4bit: false`, which made `EvaluateConfig.is_smoke` evaluate to `True`
+(the property is `not use_4bit`, matching `FinetuneConfig`'s existing convention) and tripped
+the smoke-tag validation against the real 1.5B model tag. Fixed to `use_4bit: true` -- the full
+eval path should load the base model the same way it was actually trained (4-bit NF4), not a
+different precision at inference time.
+
+**Review.** Two documented, non-blocking notes: `is_smoke` gating on `use_4bit` is a slightly
+indirect signal (a future contributor could disagree the two fields intentionally and get a
+confusing rejection rather than a clear "these fields conflict" error), and having two
+baselines files (`baselines.json`, `baselines_holdout.json`) in `eval/results/` long-term is a
+real tradeoff worth a doc note later, not a bug now. Both already called out in-file/in-plan.
+
+**Status.** Task 4 of 6 for C5. Next: `evaluate.py::main()` CLI wiring and the actual smoke-run
+exercise.

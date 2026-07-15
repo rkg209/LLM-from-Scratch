@@ -683,3 +683,27 @@ must never accidentally already contain something the holdout or stub set uses.
 
 **Status.** Task 2 of 6 for C3. Next: `data_gen.py` core (inject_and_label, dedup, split,
 provenance) driven by a fake frontier client.
+
+---
+
+### Entry -- C3 T3: `data_gen.py` core (inject/label, dedup, split, provenance)
+
+**What.** Added `inject_and_label`, `dedup_against_holdout`, `dedup_within_training_set`,
+`split_train_val`, and `build_provenance` to a new `ch2_adaptation/data_gen.py`, plus 15
+fake-client-driven tests. One frontier call injects and labels a bug together (a locked
+`BUG_INJECTION_PROMPT_TEMPLATE`, distinct from `prompts.py`'s review-only prompt), rather than
+two calls that could drift apart.
+
+**Why.** A malformed response must be dropped outright, never hand-repaired -- filling in a
+missing field with a guess would put fabricated labels into training data. `build_provenance`
+mirrors `planning/04-database-design.md` SS3.3's exact field list so the generation run's audit
+trail matches the documented design, not an ad hoc shape.
+
+**Review.** One should-fix caught: `data_gen.py` had defined its own `Any`-typed
+`FrontierClient` Protocol, duplicating the one already in `frontier.py` -- a second source of
+truth for the same contract that a future change to one wouldn't catch in the other. Fixed by
+importing `frontier.py`'s `FrontierClient` and `baseline.py`'s `Usage` directly. Tests confirmed
+meaningful (each "never hand-repair" test constructs a genuinely malformed payload and asserts
+the record is dropped, not patched); `split_train_val` confirmed lossless and reproducible.
+
+**Status.** Task 3 of 6 for C3. Next: `data_gen.py::main()` wiring -- budget guard, smoke path.

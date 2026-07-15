@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import argparse
 import json
 
 import pytest
@@ -260,3 +261,118 @@ def test_label_mined_records_raises_clearly_on_a_response_count_mismatch() -> No
 
     with pytest.raises(ValueError, match="2 mined snippets"):
         label_mined_records(raw, client)
+
+
+def test_dedup_report_to_markdown_lists_removed_entries() -> None:
+    report = DedupReport(
+        method="test method",
+        n_checked=5,
+        n_removed=1,
+        removed=[{"id": "abc-123", "reason": "duplicate of xyz-789"}],
+        records=[],
+    )
+
+    markdown = report.to_markdown()
+
+    assert "test method" in markdown
+    assert "**Checked:** 5" in markdown
+    assert "**Removed:** 1" in markdown
+    assert "abc-123" in markdown
+    assert "duplicate of xyz-789" in markdown
+
+
+def test_dedup_report_to_markdown_states_none_removed() -> None:
+    report = DedupReport(method="test method", n_checked=3, n_removed=0)
+    markdown = report.to_markdown()
+    assert "No records removed." in markdown
+
+
+@pytest.fixture
+def freeze_workspace(tmp_path):
+    synthetic_path = tmp_path / "synthetic.jsonl"
+    mined_path = tmp_path / "mined_labeled.jsonl"
+
+    synthetic_records = [label(code=f"synthetic {i}") for i in range(3)]
+    mined_records = [
+        mined(
+            code="mined 0",
+            severity="critical",
+            category="npe-risk",
+            line=1,
+            issue="Possible null dereference.",
+            suggested_fix="Guard with Objects.requireNonNull.",
+        )
+    ]
+
+    with synthetic_path.open("w") as handle:
+        for record in synthetic_records:
+            handle.write(json.dumps(record) + "\n")
+    with mined_path.open("w") as handle:
+        for record in mined_records:
+            handle.write(json.dumps(record) + "\n")
+
+    return synthetic_path, mined_path
+
+
+def test_run_freeze_writes_holdout_manifest_and_dedup_report(
+    freeze_workspace, tmp_path, monkeypatch
+):
+    from ch2_adaptation.holdout_curator import _run_freeze
+
+    monkeypatch.setattr(
+        "ch2_adaptation.holdout_curator._STUB_POOLS",
+        {},  # no external pools -- keep this test independent of real stub-set content
+    )
+    synthetic_path, mined_path = freeze_workspace
+    output_dir = tmp_path / "out"
+    hashes_path = tmp_path / "frozen_hashes.txt"
+
+    args = argparse.Namespace(
+        synthetic=synthetic_path,
+        mined_labeled=mined_path,
+        output_dir=output_dir,
+        hashes_path=hashes_path,
+        curator="test-curator",
+    )
+    _run_freeze(args)
+
+    holdout = [json.loads(line) for line in (output_dir / "holdout.jsonl").read_text().splitlines()]
+    assert len(holdout) == 4  # 3 synthetic + 1 mined, no internal duplicates
+
+    manifest = json.loads((output_dir / "manifest.json").read_text())
+    assert manifest["n_synthetic"] == 3
+    assert manifest["n_mined"] == 1
+    assert manifest["n_total"] == 4
+    assert manifest["curator"] == "test-curator"
+    assert manifest["sources"] == ["org/repo"]
+
+    dedup_report_md = (output_dir / "dedup_report.md").read_text()
+    assert "Removed:** 0" in dedup_report_md
+
+    hashes = hashes_path.read_text().splitlines()
+    assert len(hashes) == 4
+
+
+def test_run_freeze_drops_a_record_colliding_with_an_external_pool(
+    freeze_workspace, tmp_path, monkeypatch
+):
+    from ch2_adaptation.holdout_curator import _run_freeze
+
+    synthetic_path, mined_path = freeze_workspace
+    stub_path = tmp_path / "stub.jsonl"
+    stub_path.write_text(json.dumps({"code": "synthetic 0"}) + "\n")
+    monkeypatch.setattr("ch2_adaptation.holdout_curator._STUB_POOLS", {"stub_eval": str(stub_path)})
+
+    args = argparse.Namespace(
+        synthetic=synthetic_path,
+        mined_labeled=mined_path,
+        output_dir=tmp_path / "out",
+        hashes_path=tmp_path / "frozen_hashes.txt",
+        curator="test-curator",
+    )
+    _run_freeze(args)
+
+    holdout = [
+        json.loads(line) for line in (tmp_path / "out" / "holdout.jsonl").read_text().splitlines()
+    ]
+    assert len(holdout) == 3  # one synthetic record dropped for colliding with the stub set

@@ -104,6 +104,24 @@ class DedupReport:
     removed: list[dict[str, str]] = field(default_factory=list)
     records: list[dict[str, Any]] = field(default_factory=list)
 
+    def to_markdown(self) -> str:
+        """Render the human-readable `dedup_report.md` the freeze step commits."""
+        lines = [
+            "# Dedup report",
+            "",
+            f"**Method:** {self.method}",
+            f"**Checked:** {self.n_checked}",
+            f"**Removed:** {self.n_removed}",
+            "",
+        ]
+        if self.removed:
+            lines.append("| id | reason |")
+            lines.append("|---|---|")
+            lines.extend(f"| {entry['id']} | {entry['reason']} |" for entry in self.removed)
+        else:
+            lines.append("No records removed.")
+        return "\n".join(lines)
+
 
 def assemble_records(
     synthetic: list[dict[str, Any]], mined: list[dict[str, Any]]
@@ -253,6 +271,26 @@ def parse_args() -> argparse.Namespace:
         "--output", type=Path, default=Path("eval/staging/mined_labeled.jsonl")
     )
 
+    freeze_parser = subparsers.add_parser(
+        "freeze", help="assemble/validate/dedup/manifest the 40-record holdout"
+    )
+    freeze_parser.add_argument(
+        "--synthetic", type=Path, default=Path("eval/staging/synthetic.jsonl")
+    )
+    freeze_parser.add_argument(
+        "--mined-labeled", type=Path, default=Path("eval/staging/mined_labeled.jsonl")
+    )
+    freeze_parser.add_argument("--output-dir", type=Path, default=Path("eval/staging"))
+    freeze_parser.add_argument(
+        "--hashes-path",
+        type=Path,
+        default=Path("eval/frozen_hashes.txt"),
+        help="the committed hash-only index C3's data_gen.py reads to self-exclude",
+    )
+    freeze_parser.add_argument(
+        "--curator", type=str, required=True, help="identity of the person/process freezing this"
+    )
+
     return parser.parse_args()
 
 
@@ -303,10 +341,56 @@ def _run_label_mined(args: argparse.Namespace) -> None:
     _log_label_mined_to_wandb(cfg, len(raw), len(labeled), usage)
 
 
+# The stub sets are the only training-adjacent data that exists at freeze time (spec C2
+# is built before C3's real train.jsonl); dedup checks against these plus the batch
+# itself, per the plan.
+_STUB_POOLS = {
+    "stub_eval": "eval/stub/stub_eval.jsonl",
+    "stub_eval_smoke": "eval/stub/stub_eval_smoke.jsonl",
+}
+
+
+def _hash_pool(path: Path | str) -> list[str]:
+    return [code_hash(record["code"]) for record in _load_jsonl(path)]
+
+
+def _run_freeze(args: argparse.Namespace) -> None:
+    synthetic = _load_jsonl(args.synthetic)
+    mined = _load_jsonl(args.mined_labeled)
+    print(f"[C2] freezing {len(synthetic)} synthetic + {len(mined)} mined records")
+
+    records = assemble_records(synthetic, mined)
+    validate_records(records)
+
+    external_hash_pools = {name: _hash_pool(path) for name, path in _STUB_POOLS.items()}
+    report = dedup_records(records, external_hash_pools)
+    print(f"[C2] dedup: checked {report.n_checked}, removed {report.n_removed}")
+
+    sources = sorted(
+        {record["source_repo"] for record in report.records if "source_repo" in record}
+    )
+    manifest = build_manifest(report.records, report, sources, args.curator)
+
+    output_dir = args.output_dir
+    output_dir.mkdir(parents=True, exist_ok=True)
+    _write_jsonl(report.records, output_dir / "holdout.jsonl")
+    (output_dir / "manifest.json").write_text(json.dumps(manifest, indent=2))
+    (output_dir / "dedup_report.md").write_text(report.to_markdown())
+
+    hashes = sorted(code_hash(record["code"]) for record in report.records)
+    args.hashes_path.parent.mkdir(parents=True, exist_ok=True)
+    args.hashes_path.write_text("\n".join(hashes) + ("\n" if hashes else ""))
+
+    print(f"[C2] wrote {output_dir / 'holdout.jsonl'} ({len(report.records)} records)")
+    print(f"[C2] wrote {args.hashes_path} ({len(hashes)} hashes)")
+
+
 def main() -> None:
     args = parse_args()
     if args.command == "label-mined":
         _run_label_mined(args)
+    elif args.command == "freeze":
+        _run_freeze(args)
     else:
         raise ValueError(f"unknown command: {args.command!r}")
 

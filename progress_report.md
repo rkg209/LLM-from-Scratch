@@ -1006,3 +1006,30 @@ recorded hash matches `eval/schema.json`'s real SHA-256.
 
 **Status.** Task 1 of 6 for C5, already substantially satisfied by prior work. Next:
 `evaluate.py::score_adapter_on_holdout` + `verify_schema_unchanged`, driven by fakes.
+
+---
+
+### Entry -- C5 T2: evaluate.py -- score_adapter_on_holdout, verify_schema_unchanged
+
+**What.** `score_adapter_on_holdout` forwards to the existing `score_system` (the only scoring
+path, AC-1) with an injected `generate` callable. `verify_schema_unchanged` recomputes
+`eval/schema.json`'s hash and raises if it drifted since baselines were measured (AC-8).
+
+**Why the signature deviates from the plan.** The plan named
+`score_adapter_on_holdout(adapter_path, holdout_path, config) -> EvalResult`, which would load a
+real peft adapter inside the function -- untestable without torch/network. Mirroring
+`score_system`'s injected-generator shape (already established by `baseline.py`) keeps the
+scoring logic itself testable with a fake; the real adapter-loading function is a separate,
+later task.
+
+**What the review caught.** Two of my first-cut tests re-derived `score_system`'s own rate
+arithmetic, which `test_baseline.py` already covers byte-for-byte -- they would have caught a
+forwarding bug only by accident, not by design. Replaced with a single test that monkeypatches
+`score_system` and asserts `score_adapter_on_holdout` forwards its exact arguments and return
+value -- the only thing this thin wrapper actually does, and the only thing worth testing here
+that isn't already tested elsewhere. Also: `verify_schema_unchanged` raised a bare
+`FileNotFoundError` with no context on a missing/typo'd path; added a clear message naming the
+path and the AC-8 context.
+
+**Status.** Task 2 of 6 for C5. Next: `render_table` + `update_readme_results_section`, matching
+the eval-table skill's exact format.

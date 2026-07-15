@@ -858,3 +858,40 @@ what could actually go wrong.
 
 **Status.** Task 2 of 6 for C4. Next: `data_loader.py` (`format_prompt`, `ReviewDataset` with the
 label-masking assertion AC-4 requires).
+
+---
+
+### Entry -- C4 T3: `data_loader.py` -- format_prompt, ReviewDataset, masked labels
+
+**What.** `format_prompt` builds the locked Qwen2.5 chat-template shape from the `qlora-recipe`
+skill. `ReviewDataset` tokenizes the prompt-only prefix and the full sequence separately, then
+masks `labels[:len(prefix_ids)] = -100` so loss is computed only on the assistant's JSON (AC-4).
+Deliberately not a literal `torch.utils.data.Dataset` subclass -- a plain `__len__`/`__getitem__`
+class keeps the module free of a top-level `torch` import, matching every other ch2 module's
+"heavy imports stay function-local" pattern.
+
+**Why.** Training on the prompt tokens (system instructions, the buggy code itself) would teach
+the model to reproduce buggy Java, which is the opposite of the fine-tune's purpose.
+
+**A real gap the code review caught, worth explaining carefully.** The masking approach assumes
+`full_ids[:len(prefix_ids)] == prefix_ids` -- i.e. that tokenizing the prefix alone gives exactly
+the same tokens as that same span gets when tokenized as part of the full sequence. This is a
+known sharp edge with BPE tokenizers: merge decisions are context-sensitive, and the split point
+here sits right at a newline immediately before the assistant's JSON opening brace -- exactly the
+kind of boundary where a merge could differ once more text follows. The original code masked
+blindly with no verification. Fixed by adding an explicit equality check that raises a clear
+`ValueError` if the prefix ever isn't a true prefix of the full tokenization, rather than silently
+producing a wrong mask. Added a test with a fake tokenizer that deliberately reproduces this drift
+(returns different ids for the prefix alone vs. the same span inside the full sequence) and
+confirms the guard actually fires.
+
+**Also caught: a circular test.** `test_review_dataset_masks_the_full_prompt_span...` recomputed
+the expected prefix-token count using the exact same tokenizer call `__getitem__` itself uses --
+so it could only ever confirm internal self-consistency, not catch a real boundary bug. The
+already-present `test_review_dataset_label_span_decodes_back_to_the_review_json` (decode the
+unmasked span, `json.loads` it, compare against the real record) is independent and would have
+caught a real off-by-one. Kept both: the first still checks tensor shapes and the
+attention-mask/full-mask-then-real-tokens structure, which the decode test doesn't cover.
+
+**Status.** Task 3 of 6 for C4. Next: `model.py::load_base_model_for_training` (smoke fp32/CPU
+and full 4-bit/GPU branches).

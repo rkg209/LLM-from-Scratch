@@ -1,14 +1,18 @@
-"""assemble_records, validate_records, dedup_records, build_manifest — driven entirely by
-fixtures, no network, no torch (spec C2, task 2)."""
+"""assemble_records, validate_records, dedup_records, build_manifest, label_mined_records
+— driven entirely by fixtures, no network, no torch (spec C2, tasks 2 and 5)."""
 
 from __future__ import annotations
 
+import json
+
 import pytest
+from ch2_adaptation.baseline import Usage
 from ch2_adaptation.holdout_curator import (
     DedupReport,
     assemble_records,
     build_manifest,
     dedup_records,
+    label_mined_records,
     validate_records,
 )
 
@@ -164,3 +168,95 @@ def test_build_manifest_handles_zero_records() -> None:
     assert manifest["n_synthetic"] == 0
     assert manifest["n_mined"] == 0
     assert manifest["n_total"] == 0
+
+
+def mined(code: str = "return 1;", **overrides: object) -> dict[str, object]:
+    record = {
+        "code": code,
+        "context": "",
+        "source_repo": "org/repo",
+        "license": "MIT",
+        "commit_url": "https://github.com/org/repo/commit/abc",
+    }
+    record.update(overrides)
+    return record
+
+
+def review_response(**overrides: object) -> str:
+    payload = {
+        "severity": "major",
+        "category": "npe-risk",
+        "line": 1,
+        "issue": "Possible null dereference.",
+        "suggested_fix": "Guard with Objects.requireNonNull.",
+    }
+    payload.update(overrides)
+    return json.dumps(payload)
+
+
+class FakeClient:
+    def __init__(self, outputs: list[str], usage: Usage | None = None) -> None:
+        self.outputs = outputs
+        self.usage = usage or Usage(0, 0, 0.0, "free")
+        self.seen_prompts: list[str] = []
+
+    def generate(self, prompts: list[str]) -> tuple[list[str], Usage]:
+        self.seen_prompts = prompts
+        return self.outputs, self.usage
+
+
+def test_label_mined_records_attaches_the_five_label_fields() -> None:
+    client = FakeClient([review_response(), review_response(severity="critical")])
+    raw = [mined(code="a"), mined(code="b")]
+
+    labeled, usage = label_mined_records(raw, client)
+
+    assert len(labeled) == 2
+    assert labeled[0]["severity"] == "major"
+    assert labeled[1]["severity"] == "critical"
+    assert labeled[0]["source_repo"] == "org/repo"  # provenance fields preserved
+    assert usage.cost_usd == 0.0
+
+
+def test_label_mined_records_uses_the_locked_zero_shot_prompt() -> None:
+    from ch2_adaptation.prompts import format_zero_shot
+
+    client = FakeClient([review_response()])
+    raw = [mined(code="specific snippet")]
+
+    label_mined_records(raw, client)
+
+    assert client.seen_prompts == [format_zero_shot("specific snippet")]
+
+
+def test_label_mined_records_drops_unparseable_response() -> None:
+    client = FakeClient(["not json", review_response()])
+    raw = [mined(code="a"), mined(code="b")]
+
+    labeled, _ = label_mined_records(raw, client)
+
+    assert len(labeled) == 1
+    assert labeled[0]["code"] == "b"
+
+
+def test_label_mined_records_drops_schema_invalid_response() -> None:
+    client = FakeClient([review_response(severity="catastrophic")])
+    labeled, _ = label_mined_records([mined()], client)
+    assert labeled == []
+
+
+def test_label_mined_records_never_hand_repairs_a_bad_response() -> None:
+    bad = json.dumps(
+        {"severity": "major", "category": "npe-risk", "line": 1, "issue": "x"}
+    )  # missing suggested_fix
+    client = FakeClient([bad])
+    labeled, _ = label_mined_records([mined()], client)
+    assert labeled == []
+
+
+def test_label_mined_records_raises_clearly_on_a_response_count_mismatch() -> None:
+    client = FakeClient([review_response()])  # 1 response for 2 snippets
+    raw = [mined(code="a"), mined(code="b")]
+
+    with pytest.raises(ValueError, match="2 mined snippets"):
+        label_mined_records(raw, client)

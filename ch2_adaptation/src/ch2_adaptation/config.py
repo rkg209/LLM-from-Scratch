@@ -38,7 +38,14 @@ class FinetuneConfig:
     wandb_project: str
 
     def __post_init__(self) -> None:
-        if self.model_tag != LOCKED_MODEL_TAG:
+        if self.is_smoke:
+            if self.model_tag != SMOKE_MODEL_TAG:
+                raise ValueError(
+                    f"smoke fine-tune runs are only allowed to use {SMOKE_MODEL_TAG!r}, got "
+                    f"{self.model_tag!r}. A first-time load of the real 1.5B model is a ~3GB "
+                    "download that cannot reliably finish inside the smoke time budget."
+                )
+        elif self.model_tag != LOCKED_MODEL_TAG:
             raise ValueError(
                 f"base model is locked to {LOCKED_MODEL_TAG!r} (CON-11), got {self.model_tag!r}. "
                 "Changing it invalidates the measured baselines — update spec C1 first."

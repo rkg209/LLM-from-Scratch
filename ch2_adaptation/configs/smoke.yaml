@@ -1,7 +1,9 @@
 # CPU smoke profile — proves the fine-tune code path, on CPU, in seconds (NFR-1).
 # Not a small training run: 5 steps at lora_r=4 teaches the model nothing, and is not
 # meant to. It is there to catch a broken collator before an hour of GPU time is spent.
-model_tag: Qwen/Qwen2.5-Coder-1.5B-Instruct
+# SMOKE_MODEL_TAG is a tiny stand-in, not the real 1.5B model: a first-time load of the
+# real model is a ~3GB download that cannot reliably finish inside the smoke time budget.
+model_tag: trl-internal-testing/tiny-Qwen2ForCausalLM-2.5
 lora_r: 4
 lora_alpha: 8
 lora_dropout: 0.05

@@ -6,7 +6,7 @@ from dataclasses import replace
 from pathlib import Path
 
 import pytest
-from ch2_adaptation.config import LOCKED_MODEL_TAG, load_finetune_config
+from ch2_adaptation.config import LOCKED_MODEL_TAG, SMOKE_MODEL_TAG, load_finetune_config
 
 CONFIGS = Path("ch2_adaptation/configs")
 
@@ -14,7 +14,6 @@ CONFIGS = Path("ch2_adaptation/configs")
 @pytest.mark.parametrize("profile", ["smoke", "full"])
 def test_committed_config_loads(profile: str) -> None:
     config = load_finetune_config(CONFIGS / f"{profile}.yaml")
-    assert config.model_tag == LOCKED_MODEL_TAG
     assert config.seed == 42
 
 
@@ -27,20 +26,34 @@ def test_smoke_profile_runs_on_cpu() -> None:
     assert config.max_steps <= 10
 
 
+def test_smoke_profile_uses_the_tiny_stand_in_model() -> None:
+    """A first-time load of the real 1.5B model can't reliably finish in the smoke budget."""
+    config = load_finetune_config(CONFIGS / "smoke.yaml")
+    assert config.model_tag == SMOKE_MODEL_TAG
+
+
 def test_full_profile_is_the_gpu_recipe() -> None:
     config = load_finetune_config(CONFIGS / "full.yaml")
 
     assert config.use_4bit is True
+    assert config.model_tag == LOCKED_MODEL_TAG
     assert config.lora_r == 16
     assert config.lora_alpha == 32
 
 
-def test_base_model_is_locked() -> None:
+def test_base_model_is_locked_for_the_full_profile() -> None:
     """Swapping the base model invalidates every measured baseline (CON-11)."""
     config = load_finetune_config(CONFIGS / "full.yaml")
 
     with pytest.raises(ValueError, match="locked"):
         replace(config, model_tag="meta-llama/Llama-3.2-1B")
+
+
+def test_smoke_profile_rejects_any_tag_other_than_the_allowlisted_stand_in() -> None:
+    config = load_finetune_config(CONFIGS / "smoke.yaml")
+
+    with pytest.raises(ValueError, match="smoke fine-tune runs"):
+        replace(config, model_tag=LOCKED_MODEL_TAG)
 
 
 def test_lora_needs_a_target() -> None:

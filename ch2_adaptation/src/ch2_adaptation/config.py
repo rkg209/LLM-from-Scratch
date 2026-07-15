@@ -99,3 +99,58 @@ class BaselineConfig:
 
 def load_baseline_config(path: Path | str) -> BaselineConfig:
     return _load_config(path, BaselineConfig)
+
+
+# ch2_adaptation/data/provenance.json is the committed, published generation record (spec C3,
+# planning/04 §3.3). A smoke run must never overwrite it with output from the stub client —
+# same shape as _PUBLISHED_BASELINES_PATH above.
+_PUBLISHED_PROVENANCE_PATH = "ch2_adaptation/data/provenance.json"
+
+
+@dataclass(frozen=True)
+class DataGenConfig:
+    frontier_provider: str
+    frontier_model_tag: str
+    temperature: float
+    max_new_tokens: int
+    seed_pool_path: str
+    train_path: str
+    val_path: str
+    provenance_path: str
+    val_frac: float
+    n_snippets: int
+    variants_per_snippet: int
+    max_budget_usd: float
+    seed: int
+    wandb_mode: str
+    wandb_project: str
+
+    def __post_init__(self) -> None:
+        if not 0.0 < self.val_frac < 1.0:
+            raise ValueError(f"val_frac must be in (0, 1), got {self.val_frac!r}")
+        if self.n_snippets <= 0:
+            raise ValueError(f"n_snippets must be positive, got {self.n_snippets!r}")
+        if self.variants_per_snippet <= 0:
+            raise ValueError(
+                f"variants_per_snippet must be positive, got {self.variants_per_snippet!r}"
+            )
+        if self.max_budget_usd <= 0:
+            raise ValueError(f"max_budget_usd must be positive, got {self.max_budget_usd!r}")
+        if (
+            self.is_smoke
+            and Path(self.provenance_path).resolve() == Path(_PUBLISHED_PROVENANCE_PATH).resolve()
+        ):
+            raise ValueError(
+                f"a smoke run must never write {_PUBLISHED_PROVENANCE_PATH!r} — that is the "
+                "committed, published provenance record. Point provenance_path at a gitignored "
+                "path under outputs/ instead."
+            )
+
+    @property
+    def is_smoke(self) -> bool:
+        """The stub frontier client makes no network call and needs no API key."""
+        return self.frontier_provider == "stub"
+
+
+def load_data_gen_config(path: Path | str) -> DataGenConfig:
+    return _load_config(path, DataGenConfig)

@@ -1,0 +1,19 @@
+# CPU/CI smoke profile -- proves load seed pool -> inject+label -> dedup -> split ->
+# provenance -> atomic write, in seconds. StubFrontierClient makes no network call, so this
+# needs no GEMINI_API_KEY. Writes only to gitignored outputs/, NEVER to
+# ch2_adaptation/data/provenance.json (DataGenConfig.__post_init__ enforces this).
+frontier_provider: stub
+frontier_model_tag: stub-frontier
+temperature: 0.7
+max_new_tokens: 256
+seed_pool_path: ch2_adaptation/data/seed_snippets/clean_pool.jsonl
+train_path: outputs/datagen-smoke/train.jsonl
+val_path: outputs/datagen-smoke/val.jsonl
+provenance_path: outputs/datagen-smoke/provenance.json
+val_frac: 0.10
+n_snippets: 4
+variants_per_snippet: 1
+max_budget_usd: 0.01
+seed: 42
+wandb_mode: disabled
+wandb_project: ch2-adaptation

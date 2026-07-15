@@ -798,3 +798,21 @@ than actually happened.
 on C2 and C3 per `specs/STATUS.md` but -- like every other spec in this project -- its code can be
 written and tested against fixtures now, with the real dependency chain resolved later by the
 user's own hand.
+
+---
+
+### Entry -- C4 T1: FinetuneConfig smoke/full split
+
+**What.** `FinetuneConfig.__post_init__` now branches on `is_smoke` exactly like `BaselineConfig`
+already does: smoke requires `model_tag == SMOKE_MODEL_TAG`, full requires the locked 1.5B tag.
+`smoke.yaml` updated to point at the tiny stand-in. Test file extended with the new branch
+(smoke rejects the real tag, full still rejects an arbitrary swap).
+
+**Why.** This bug was flagged during planning, not discovered live: `smoke.yaml` set
+`model_tag: Qwen/Qwen2.5-Coder-1.5B-Instruct` with no carve-out, so a first C4 smoke run would
+have tried to download and load the real ~3GB model on CPU -- unable to reliably finish inside
+the under-120s smoke budget, and inconsistent with how C1 already solved the identical problem
+for `BaselineConfig`. Applying the same fix mechanically rather than re-deciding it.
+
+**Status.** Task 1 of 6 for C4. Next: `lora.py` (`build_lora_config`, `attach_lora` with the
+trainable-fraction guard).

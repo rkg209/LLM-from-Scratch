@@ -1033,3 +1033,26 @@ path and the AC-8 context.
 
 **Status.** Task 2 of 6 for C5. Next: `render_table` + `update_readme_results_section`, matching
 the eval-table skill's exact format.
+
+---
+
+### Entry -- C5 T3: render_table + update_readme_results_section
+
+**What.** `render_table` produces the exact markdown shape the eval-table skill locks (verified
+byte-for-byte against the skill's own example). `update_readme_results_section` replaces content
+between a new `EVAL_TABLE_START`/`EVAL_TABLE_END` marker pair added to README.md's Chapter 2
+results section, idempotently.
+
+**Why.** The table format is locked precisely so a reader can trust it means the same thing every
+time it's regenerated; marker-based replacement is what lets `/eval` refresh the section without
+hand-editing or drifting.
+
+**Review.** One should-fix, hardened before committing: the marker-presence check only verified
+both markers existed somewhere in the file, not that there was exactly one of each or that START
+came before END. A malformed README (duplicate marker pairs from a copy-paste accident, or the
+two markers reversed) would have silently produced a garbled splice instead of raising -- on a
+function that runs on every single `/eval` invocation, that's worth being strict about. Added
+count and ordering checks, with tests for both failure modes.
+
+**Status.** Task 3 of 6 for C5. Next: the three new configs (eval_smoke.yaml, eval_full.yaml,
+baseline_holdout.yaml) with the smoke path exercised in-session.

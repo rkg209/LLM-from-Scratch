@@ -8,11 +8,23 @@ from raw model output to a rate, same as `baseline.py`'s `score_system`.
 
 from __future__ import annotations
 
+import argparse
 import hashlib
+import json
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from ch2_adaptation.baseline import Generator, score_system
+from eval.config import seed_everything
 from eval.harness import DEFAULT_SCHEMA_PATH, EvalResult
+
+if TYPE_CHECKING:
+    from ch2_adaptation.config import EvaluateConfig
+
+# eval_full.yaml's paired baseline run -- re-scores the base model and frontier API on
+# the same holdout, per baseline_holdout.yaml. Its schema_sha256 is what a full adapter
+# run checks against before trusting the comparison (AC-8).
+_BASELINE_HOLDOUT_RESULTS_PATH = "eval/results/baselines_holdout.json"
 
 
 def score_adapter_on_holdout(
@@ -103,3 +115,71 @@ def update_readme_results_section(table_md: str, readme_path: Path | str) -> Non
     _, _, after = rest.partition(README_EVAL_TABLE_END)
     new_content = f"{before}{README_EVAL_TABLE_START}\n{table_md}\n{README_EVAL_TABLE_END}{after}"
     readme_path.write_text(new_content)
+
+
+def make_adapter_generator(config: EvaluateConfig) -> Generator:
+    """Load the base model, attach the trained adapter, return a `prompts -> raw
+    responses` callable -- zero-shot, since the fine-tuned model needs no few-shot
+    examples (that's the point of fine-tuning).
+    """
+    from peft import PeftModel
+
+    from ch2_adaptation.model import generate_completions, load_base_model
+
+    base_model, tokenizer = load_base_model(config.model_tag, config.use_4bit)
+    model = PeftModel.from_pretrained(base_model, config.adapter_path, is_trainable=False)
+    model.eval()
+
+    def generate(prompts: list[str]) -> list[str]:
+        return generate_completions(model, tokenizer, prompts, config.max_new_tokens)
+
+    return generate
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="Score the fine-tuned adapter on the frozen holdout, zero-shot."
+    )
+    parser.add_argument("--config", type=Path, required=True, help="path to a YAML config")
+    return parser.parse_args()
+
+
+def main() -> None:
+    from ch2_adaptation.config import load_evaluate_config
+    from ch2_adaptation.prompts import format_zero_shot
+    from eval.harness import load_holdout, write_json_atomic
+
+    args = parse_args()
+    config = load_evaluate_config(args.config)
+    seed_everything(config.seed)
+    print(f"[C5] config loaded: {args.config}")
+
+    if not config.is_smoke:
+        # The real run must not compare against a schema that drifted since the paired
+        # baseline_holdout.yaml run measured the other two systems (AC-8).
+        baselines = json.loads(Path(_BASELINE_HOLDOUT_RESULTS_PATH).read_text())
+        verify_schema_unchanged(baselines["schema_sha256"])
+
+    holdout_records = load_holdout(config.holdout_path)
+    prompts = [format_zero_shot(record["code"]) for record in holdout_records]
+
+    generate = make_adapter_generator(config)
+    result = score_adapter_on_holdout(prompts, generate, config.holdout_path)
+
+    doc = {
+        "model_tag": config.model_tag,
+        "adapter_path": config.adapter_path,
+        "mode": "zero-shot",
+        **result.to_json(),
+    }
+    write_json_atomic(doc, config.results_path)
+
+    print(
+        f"[C5] validity={result.schema_validity_rate:.2f} "
+        f"catch={result.bug_catch_rate:.2f} n={result.n_samples}"
+    )
+    print(f"[C5] wrote {config.results_path}")
+
+
+if __name__ == "__main__":
+    main()

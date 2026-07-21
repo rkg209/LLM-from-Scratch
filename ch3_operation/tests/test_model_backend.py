@@ -73,11 +73,9 @@ def test_generate_holds_the_lock_during_the_call(monkeypatch: pytest.MonkeyPatch
     assert backend.generate("hello", max_tokens=4) == "locked"
 
 
-llama_cpp = pytest.importorskip("llama_cpp")
-
-
 def test_real_backend_loads_the_fixture_and_generates() -> None:
     """The one test that actually retires the integration risk."""
+    pytest.importorskip("llama_cpp")
     config = load_serve_config(CONFIGS / "smoke.yaml")
 
     backend = LlamaCppBackend(config)

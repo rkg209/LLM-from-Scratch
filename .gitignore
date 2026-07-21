@@ -34,5 +34,10 @@ build/
 .idea/
 .vscode/
 
-# --- Claude Code local overrides ---
-.claude/settings.local.json
+.claude/
+CLAUDE.md
+HANDOFF.md
+llm-engineering-architecture-to-edge.md
+progress_report.md
+specs/
+planning/

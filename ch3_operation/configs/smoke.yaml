@@ -1,6 +1,9 @@
 # CPU smoke profile — runs in CI with no real model, against the committed test fixture.
+# n_ctx=1536: the O0 system prompt embeds the full eval/schema.json verbatim, which
+# tokenizes to ~900+ tokens against stories260K's small custom vocab (its own
+# n_ctx_train is 2048) -- 512 was too small and every /review 503'd on a real request.
 model_path: ch3_operation/tests/fixtures/tiny.gguf
-n_ctx: 512
+n_ctx: 1536
 n_threads: 2
 max_tokens: 128
 temperature: 0.0

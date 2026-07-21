@@ -1,25 +1,27 @@
-"""Chapter 3 serving entrypoint.
-
-SCAFFOLD (spec F2). Loads and validates the serving config and reports what it would
-serve — it does not start a server. The FastAPI app is spec O0 (thin slice, base model),
-the guardrails are O2, and the metrics are O3.
-
-O0 is deliberately early in the backlog: standing the serving path up against the base
-model, before Chapter 2 finishes, is what stops deployment from becoming the thing that
-gets discovered in the last week.
-"""
+"""Chapter 3 serving entrypoint (spec O0): loads config, builds the real backend and
+FastAPI app, and runs uvicorn -- or, with `--check`, loads the model and exits 0 without
+serving, so CI can prove the model loads without keeping a server alive."""
 
 from __future__ import annotations
 
 import argparse
 from pathlib import Path
 
+import uvicorn
+
+from ch3_operation.api.main import create_app
 from ch3_operation.config import N_GPU_LAYERS, ServeConfig, load_serve_config
+from ch3_operation.model_backend import LlamaCppBackend
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Serve the Chapter 3 code-review model.")
     parser.add_argument("--config", type=Path, required=True, help="path to a YAML config")
+    parser.add_argument(
+        "--check",
+        action="store_true",
+        help="load the config and model, report, and exit 0 without starting a server",
+    )
     return parser.parse_args()
 
 
@@ -33,9 +35,16 @@ def main() -> None:
         f"[ch3] llama.cpp: n_ctx={config.n_ctx} n_threads={config.n_threads} "
         f"max_tokens={config.max_tokens} temperature={config.temperature}"
     )
-    print(f"[ch3] would serve on {config.host}:{config.port}")
-    print(f"[ch3] drift window: last {config.metrics_window} requests")
-    print("[ch3] SCAFFOLD: no FastAPI app yet — that is spec O0. Config path verified.")
+
+    backend = LlamaCppBackend(config)  # loads once, here -- never per request (FR-20)
+    print("[ch3] model loaded successfully")
+
+    if args.check:
+        print("[ch3] --check: exiting without starting a server")
+        return
+
+    app = create_app(backend, config)
+    uvicorn.run(app, host=config.host, port=config.port)
 
 
 if __name__ == "__main__":

@@ -8,8 +8,11 @@ Not an importable package. One-shot scripts run by hand between chapters, not im
 | `merge_adapter.py` | `peft.merge_and_unload()` → `outputs/merged/`, then a schema-valid sanity check on non-holdout examples | O1 |
 | `export_gguf.py` | llama.cpp `convert_hf_to_gguf.py --outtype f16` → `outputs/model-f16.gguf` | O1 |
 | `quantize_gguf.py` | llama.cpp `llama-quantize` → `outputs/model.gguf` (`Q4_K_M` by default) | O1 |
+| `benchmark_serving.py` | Fires a fixed prompt set at a URL, reports p50/p99/throughput | O3 |
+| `deploy_space.sh` | Creates/updates an HF Spaces Docker SDK Space via `hf upload` | O5 |
+| `smoke_deployed.py` | Post-deploy check against a live URL: `/health`, `/metrics`, one real review | O5 |
 
-Each of the three is independently runnable and idempotent — it skips its step if the
+Each of the export scripts is independently runnable and idempotent — it skips its step if the
 output already exists, unless `--force` is passed. `ch3_operation.evaluate` (in
 `ch3_operation/src/ch3_operation/evaluate.py`, not here — it needs the package's
 `LlamaCppBackend` and `prompts.format_zero_shot`) is what scores the result.
@@ -46,3 +49,10 @@ run from a session:
 ```bash
 uv run python scripts/merge_adapter.py --config ch3_operation/configs/export_smoke.yaml
 ```
+
+## Deploying (O5)
+
+Also manual, also out-of-session (it creates public, externally-visible state) — see
+`docs/DEPLOY.md` for the full runbook. `deploy_space.sh` needs `hf auth login` and a real
+GGUF already uploaded to a public HF Hub model repo; `smoke_deployed.py` needs nothing but a
+URL and works against any deployed host, not only HF Spaces.

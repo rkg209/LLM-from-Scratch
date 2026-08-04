@@ -1,0 +1,30 @@
+# Everything the image must not carry: weights/datasets, the sacred holdout, git history,
+# caches. The .gguf is fetched at container start (docker/entrypoint.sh), never baked in.
+outputs/
+eval/holdout/
+.git/
+.gitignore
+*.gguf
+*.pt
+*.pth
+*.bin
+*.safetensors
+!ch3_operation/tests/fixtures/tiny.gguf
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.venv/
+wandb/
+.env
+.env.*
+!.env.example
+.DS_Store
+.idea/
+.vscode/
+ch1_architecture/
+ch2_adaptation/
+scripts/
+specs/
+planning/
+.claude/

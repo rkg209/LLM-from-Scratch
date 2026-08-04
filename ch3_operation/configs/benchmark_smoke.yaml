@@ -1,0 +1,4 @@
+# Where scripts/benchmark_serving.py writes its numbers when run against a local/smoke
+# deployment. The real, published scorecard (O5) points results_path at
+# eval/results/serving_metrics.json instead.
+results_path: outputs/smoke/serving_metrics.json

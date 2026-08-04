@@ -1,0 +1,3 @@
+{"code": "public String f(User u){return u.getProfile().getName();}"}
+{"code": "public boolean equals(MyRecord other) { return this.id == other.id; }"}
+{"code": "public byte[] readUserFile(String filename) throws IOException { return Files.readAllBytes(Paths.get(UPLOAD_DIR, filename)); }"}

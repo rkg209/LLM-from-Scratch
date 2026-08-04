@@ -771,6 +771,7 @@ ch3 = [
 dev = [
     { name = "black" },
     { name = "pytest" },
+    { name = "requests" },
     { name = "ruff" },
 ]
 
@@ -789,6 +790,7 @@ requires-dist = [
     { name = "pydantic", specifier = ">=2.7" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.2" },
     { name = "pyyaml", specifier = ">=6.0" },
+    { name = "requests", marker = "extra == 'dev'", specifier = ">=2.31" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.5" },
     { name = "torch", marker = "extra == 'ch1'", specifier = ">=2.2" },
     { name = "torch", marker = "extra == 'ch2'", specifier = ">=2.2" },

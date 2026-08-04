@@ -1,0 +1,13 @@
+# CPU smoke profile for ch3_operation.evaluate. Scores the committed tiny.gguf fixture
+# against a handful of holdout-shaped records -- proves the code path, not a real number.
+# Requires EVAL_CONTEXT=1 if holdout_path ever points at eval/holdout/ (it does not here).
+model_path: ch3_operation/tests/fixtures/tiny.gguf
+n_ctx: 1536
+n_threads: 2
+max_tokens: 128
+temperature: 0.0
+holdout_path: ch3_operation/tests/fixtures/eval_smoke_holdout.jsonl
+results_path: outputs/smoke/gguf_eval.json
+compare_to: ch3_operation/tests/fixtures/eval_smoke_compare.json
+n_samples: 3
+seed: 0

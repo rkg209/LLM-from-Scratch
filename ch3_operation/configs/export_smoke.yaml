@@ -1,0 +1,12 @@
+# CPU smoke profile for the merge -> GGUF export pipeline. Proves the code path
+# (merge -> convert -> quantize) against the tiny stand-in model; never touches the real
+# adapter or writes to a published outputs/ path (see ExportConfig.__post_init__).
+base_model_tag: trl-internal-testing/tiny-Qwen2ForCausalLM-2.5
+adapter_path: outputs/smoke/adapter
+merged_dir: outputs/smoke/merged
+gguf_f16_path: outputs/smoke/model-f16.gguf
+gguf_quant_path: outputs/smoke/model-Q4_K_M.gguf
+quant_type: Q4_K_M
+llama_cpp_dir: outputs/smoke/llama.cpp
+sanity_sample_path: ch3_operation/tests/fixtures/sanity_sample.jsonl
+sanity_n: 3

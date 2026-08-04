@@ -16,6 +16,8 @@ def test_committed_config_loads(profile: str) -> None:
     config = load_serve_config(CONFIGS / f"{profile}.yaml")
     assert config.port == 8000
     assert config.metrics_window == 100
+    assert config.max_request_bytes == 32768
+    assert config.api_version == "v1"
 
 
 def test_serving_is_cpu_only() -> None:
@@ -54,3 +56,10 @@ def test_invalid_metrics_window_is_rejected() -> None:
 
     with pytest.raises(ValueError, match="metrics_window"):
         replace(config, metrics_window=0)
+
+
+def test_invalid_max_request_bytes_is_rejected() -> None:
+    config = load_serve_config(CONFIGS / "smoke.yaml")
+
+    with pytest.raises(ValueError, match="max_request_bytes"):
+        replace(config, max_request_bytes=0)

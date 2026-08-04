@@ -1,0 +1,11 @@
+# Production merge -> GGUF export pipeline. Run manually on the GPU box, never from a
+# session (ALLOW_FULL_RUN=1) -- this is the O1 T7 step, only meaningful once C4/C5 land.
+base_model_tag: Qwen/Qwen2.5-Coder-1.5B-Instruct
+adapter_path: outputs/adapter
+merged_dir: outputs/merged
+gguf_f16_path: outputs/model-f16.gguf
+gguf_quant_path: outputs/model.gguf
+quant_type: Q4_K_M
+llama_cpp_dir: outputs/llama.cpp
+sanity_sample_path: ch2_adaptation/data/train.jsonl
+sanity_n: 10

@@ -1,4 +1,9 @@
-"""Route behaviour of the O0 FastAPI app, via `TestClient` against fakes -- no real model."""
+"""Route behaviour of the FastAPI app, via `TestClient` against fakes -- no real model.
+
+O2 rewires `/review` -> `/v1/review` (+ deprecated `/review` alias, plan D-1), returns a
+validated `ReviewOutput` on 200 instead of raw text, and separates 500 INFERENCE_ERROR from
+503 MODEL_NOT_READY.
+"""
 
 from __future__ import annotations
 
@@ -15,6 +20,11 @@ from fastapi.testclient import TestClient  # noqa: E402
 
 CONFIGS = Path("ch3_operation/configs")
 
+_VALID_REVIEW_JSON = (
+    '{"severity": "critical", "category": "npe", "line": 2, '
+    '"issue": "user.getProfile() may be null.", "suggested_fix": "add a null check"}'
+)
+
 
 class FakeBackend:
     model_loaded = True
@@ -24,7 +34,24 @@ class FakeBackend:
 
     def generate(self, prompt: str, max_tokens: int) -> str:
         self.calls.append((prompt, max_tokens))
-        return "fake review output"
+        return _VALID_REVIEW_JSON
+
+
+class UnparsableBackend:
+    model_loaded = True
+
+    def generate(self, prompt: str, max_tokens: int) -> str:
+        return "not json at all"
+
+
+class SchemaViolatingBackend:
+    model_loaded = True
+
+    def generate(self, prompt: str, max_tokens: int) -> str:
+        return (
+            '{"severity": "catastrophic", "category": "x", "line": 1, "issue": "y", '
+            '"suggested_fix": "z"}'
+        )
 
 
 class DegradedBackend:
@@ -64,41 +91,109 @@ def test_health_degraded_when_backend_reports_unloaded(smoke_config: ServeConfig
     assert response.json() == {"status": "degraded", "model_loaded": False}
 
 
-def test_review_returns_the_backend_output(smoke_config: ServeConfig) -> None:
+def test_review_returns_a_validated_review_output(smoke_config: ServeConfig) -> None:
     client = TestClient(create_app(FakeBackend(), smoke_config))
 
-    response = client.post("/review", json={"code": "public void f() {}", "context": "Spring"})
+    response = client.post("/v1/review", json={"code": "public void f() {}", "context": "Spring"})
 
     assert response.status_code == 200
-    assert response.json() == {"raw": "fake review output"}
+    assert response.json() == {
+        "severity": "critical",
+        "category": "npe",
+        "line": 2,
+        "issue": "user.getProfile() may be null.",
+        "suggested_fix": "add a null check",
+    }
+    assert response.headers["X-Request-Id"]
+
+
+def test_deprecated_review_alias_still_works(smoke_config: ServeConfig) -> None:
+    client = TestClient(create_app(FakeBackend(), smoke_config))
+
+    response = client.post("/review", json={"code": "public void f() {}", "context": ""})
+
+    assert response.status_code == 200
+    assert response.json()["severity"] == "critical"
 
 
 def test_review_rejects_empty_code(smoke_config: ServeConfig) -> None:
     client = TestClient(create_app(FakeBackend(), smoke_config))
 
-    response = client.post("/review", json={"code": "", "context": ""})
+    response = client.post("/v1/review", json={"code": "", "context": ""})
+
+    assert response.status_code == 400
+    assert response.json()["error"]["code"] == "CODE_FIELD_EMPTY"
+
+
+def test_review_rejects_missing_code_field(smoke_config: ServeConfig) -> None:
+    client = TestClient(create_app(FakeBackend(), smoke_config))
+
+    response = client.post("/v1/review", json={"context": ""})
+
+    assert response.status_code == 400
+    assert response.json()["error"]["code"] == "INVALID_REQUEST"
+
+
+def test_review_unparsable_output_is_422_validation_failed(smoke_config: ServeConfig) -> None:
+    client = TestClient(create_app(UnparsableBackend(), smoke_config))
+
+    response = client.post("/v1/review", json={"code": "public void f() {}", "context": ""})
 
     assert response.status_code == 422
+    assert response.json()["error"]["code"] == "VALIDATION_FAILED"
 
 
-def test_review_backend_failure_returns_503_and_process_survives(
+def test_review_schema_violation_is_422_with_pydantic_detail(smoke_config: ServeConfig) -> None:
+    client = TestClient(create_app(SchemaViolatingBackend(), smoke_config))
+
+    response = client.post("/v1/review", json={"code": "public void f() {}", "context": ""})
+
+    assert response.status_code == 422
+    body = response.json()
+    assert body["error"]["code"] == "SCHEMA_VIOLATION"
+    assert body["error"]["detail"] is not None
+
+
+def test_review_backend_failure_returns_500_inference_error(
     smoke_config: ServeConfig,
 ) -> None:
     client = TestClient(create_app(FailingBackend(), smoke_config))
 
-    response = client.post("/review", json={"code": "public void f() {}", "context": ""})
-    assert response.status_code == 503
+    response = client.post("/v1/review", json={"code": "public void f() {}", "context": ""})
+    assert response.status_code == 500
+    assert response.json()["error"]["code"] == "INFERENCE_ERROR"
 
     # a second request proves the failure didn't take the worker down with it
     health = client.get("/health")
     assert health.status_code == 200
 
 
+def test_review_with_backend_not_loaded_is_503_model_not_ready(
+    smoke_config: ServeConfig,
+) -> None:
+    client = TestClient(create_app(DegradedBackend(), smoke_config))
+
+    response = client.post("/v1/review", json={"code": "public void f() {}", "context": ""})
+
+    assert response.status_code == 503
+    assert response.json()["error"]["code"] == "MODEL_NOT_READY"
+
+
+def test_oversized_payload_is_413(smoke_config: ServeConfig) -> None:
+    client = TestClient(create_app(FakeBackend(), smoke_config))
+    huge_code = "a" * (smoke_config.max_request_bytes + 1)
+
+    response = client.post("/v1/review", json={"code": huge_code, "context": ""})
+
+    assert response.status_code == 413
+    assert response.json()["error"]["code"] == "PAYLOAD_TOO_LARGE"
+
+
 def test_prompt_handed_to_backend_carries_code_and_context(smoke_config: ServeConfig) -> None:
     backend = FakeBackend()
     client = TestClient(create_app(backend, smoke_config))
 
-    client.post("/review", json={"code": "public void f() {}", "context": "Spring Boot"})
+    client.post("/v1/review", json={"code": "public void f() {}", "context": "Spring Boot"})
 
     prompt, max_tokens = backend.calls[0]
     assert "public void f() {}" in prompt
@@ -121,12 +216,12 @@ def test_real_app_loads_the_backend_once_at_startup_not_per_request(
             construction_count += 1
 
         def generate(self, prompt: str, max_tokens: int) -> str:
-            return "counted"
+            return _VALID_REVIEW_JSON
 
     monkeypatch.setattr(api_main, "LlamaCppBackend", CountingBackend)
 
     with TestClient(api_main.app) as client:
-        client.post("/review", json={"code": "public void f() {}", "context": ""})
-        client.post("/review", json={"code": "public void g() {}", "context": ""})
+        client.post("/v1/review", json={"code": "public void f() {}", "context": ""})
+        client.post("/v1/review", json={"code": "public void g() {}", "context": ""})
 
     assert construction_count == 1

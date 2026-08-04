@@ -18,22 +18,10 @@ jobs:
           enable-cache: true
 
       - name: Sync environment
-        run: uv sync --extra dev --extra ch3
+        run: make setup
 
-      - name: Lint
-        run: uv run ruff check .
+      - name: Check (lint, format, tests)
+        run: make check
 
-      - name: Format check
-        run: uv run black --check .
-
-      - name: Tests
-        run: uv run pytest -q
-
-      - name: Smoke — ch1
-        run: uv run python -m ch1_architecture.train --config ch1_architecture/configs/smoke.yaml
-
-      - name: Smoke — ch2
-        run: uv run python -m ch2_adaptation.finetune --config ch2_adaptation/configs/smoke.yaml
-
-      - name: Smoke — ch3
-        run: uv run python -m ch3_operation.serve --config ch3_operation/configs/smoke.yaml --check
+      - name: Smoke — all three chapters
+        run: make smoke

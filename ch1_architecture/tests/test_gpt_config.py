@@ -5,7 +5,12 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-from ch1_architecture.config import GPTConfig, load_gpt_config
+from ch1_architecture.config import (
+    BenchmarkConfig,
+    GPTConfig,
+    load_benchmark_config,
+    load_gpt_config,
+)
 
 CONFIGS = Path("ch1_architecture/configs")
 
@@ -49,6 +54,42 @@ def test_indivisible_head_split_is_rejected() -> None:
             seed=42,
             device="cpu",
             run_name="bad",
+            corpus_path="ch1_architecture/tests/fixtures/corpus_smoke.txt",
+            tokenizer_path="outputs/ch1/tokenizer_smoke.json",
+            warmup_steps=5,
+            lr_min_ratio=0.1,
+            ckpt_every=25,
+            sample_every=25,
+            sample_prompt="First Citizen:",
+            max_new_tokens=20,
+            temperature=0.8,
+            top_k=20,
+            checkpoint_path="outputs/ch1/model_smoke.pt",
+            wandb_project="ch1-architecture",
+            wandb_mode="disabled",
+        )
+
+
+@pytest.mark.parametrize("profile", ["benchmark_smoke", "benchmark_full"])
+def test_committed_benchmark_config_loads(profile: str) -> None:
+    config = load_benchmark_config(CONFIGS / f"{profile}.yaml")
+    assert config.seed == 42
+    assert set(config.modes) <= {"fp32", "fp16", "int8", "int4"}
+
+
+def test_benchmark_config_rejects_warmup_at_or_above_n_steps() -> None:
+    with pytest.raises(ValueError, match="warmup_steps"):
+        BenchmarkConfig(
+            checkpoint_path="outputs/ch1/model_smoke.pt",
+            modes=["fp32"],
+            prompt="hi",
+            n_steps=5,
+            warmup_steps=5,
+            seed=42,
+            device="cpu",
+            eval_corpus_path="ch1_architecture/tests/fixtures/corpus_smoke.txt",
+            results_path="eval/results/ch1_benchmark.json",
+            plots_dir="eval/results/plots",
         )
 
 
@@ -68,4 +109,17 @@ def test_unknown_device_is_rejected() -> None:
             seed=42,
             device="tpu",
             run_name="bad",
+            corpus_path="ch1_architecture/tests/fixtures/corpus_smoke.txt",
+            tokenizer_path="outputs/ch1/tokenizer_smoke.json",
+            warmup_steps=5,
+            lr_min_ratio=0.1,
+            ckpt_every=25,
+            sample_every=25,
+            sample_prompt="First Citizen:",
+            max_new_tokens=20,
+            temperature=0.8,
+            top_k=20,
+            checkpoint_path="outputs/ch1/model_smoke.pt",
+            wandb_project="ch1-architecture",
+            wandb_mode="disabled",
         )

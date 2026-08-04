@@ -13,3 +13,16 @@ log_every: 10
 seed: 42
 device: cuda
 run_name: ch1-full
+corpus_path: ch1_architecture/data/corpus.txt
+tokenizer_path: outputs/ch1/tokenizer.json
+warmup_steps: 200
+lr_min_ratio: 0.1
+ckpt_every: 500
+sample_every: 250
+sample_prompt: "First Citizen:"
+max_new_tokens: 100
+temperature: 0.8
+top_k: 40
+checkpoint_path: outputs/ch1/model.pt
+wandb_project: ch1-architecture
+wandb_mode: online

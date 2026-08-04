@@ -1,0 +1,12 @@
+# CPU smoke profile for the quantization benchmark — a correctness check on the code
+# path (every mode runs, JSON + plots get written), not a meaningful speed number.
+checkpoint_path: outputs/ch1/model_smoke.pt
+modes: [fp32, fp16, int8, int4]
+prompt: "First Citizen:"
+n_steps: 15
+warmup_steps: 5
+seed: 42
+device: cpu
+eval_corpus_path: ch1_architecture/tests/fixtures/corpus_smoke.txt
+results_path: eval/results/ch1_benchmark.json
+plots_dir: eval/results/plots

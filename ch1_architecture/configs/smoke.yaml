@@ -13,3 +13,16 @@ log_every: 10
 seed: 42
 device: cpu
 run_name: ch1-smoke
+corpus_path: ch1_architecture/tests/fixtures/corpus_smoke.txt
+tokenizer_path: outputs/ch1/tokenizer_smoke.json
+warmup_steps: 5
+lr_min_ratio: 0.1
+ckpt_every: 25
+sample_every: 25
+sample_prompt: "First Citizen:"
+max_new_tokens: 20
+temperature: 0.8
+top_k: 20
+checkpoint_path: outputs/ch1/model_smoke.pt
+wandb_project: ch1-architecture
+wandb_mode: disabled

@@ -1,19 +1,31 @@
-"""Chapter 1 training entrypoint.
+"""Chapter 1 training entrypoint — the real training loop (A3).
 
-SCAFFOLD (spec F2). This currently loads and validates the config, seeds the RNGs, and
-reports what it would train — it does not train. The tokenizer is spec A1, the model is
-A2, and the real training loop is A3, which replaces the body of `main()` below.
-
-It exists now so that `/smoke ch1` and CI have something real to run from day one: a
-config that does not load is a bug worth catching before there is a model to blame.
+Replaces the F2 scaffold. `main()` stays small by delegating to the `build_*` helpers
+and `training_loop` below; the loop itself is a hand-written forward/backward/step, no
+`Trainer` class from anywhere.
 """
 
 from __future__ import annotations
 
 import argparse
+import hashlib
+import math
+import os
+import time
 from pathlib import Path
+from typing import Any
+
+import torch
+import torch.nn.functional as F
+from torch.optim import AdamW
+from torch.optim.lr_scheduler import LambdaLR
+from torch.utils.data import DataLoader
 
 from ch1_architecture.config import GPTConfig, load_gpt_config
+from ch1_architecture.data import CorpusDataset, make_dataloader
+from ch1_architecture.generate import generate
+from ch1_architecture.model.gpt import GPTModel
+from ch1_architecture.tokenizer import BPETokenizer
 from eval.config import seed_everything
 
 
@@ -23,22 +35,195 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
+def _corpus_hash(text: str) -> str:
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+def build_tokenizer_and_loader(config: GPTConfig) -> tuple[BPETokenizer, DataLoader]:
+    """Train (or load a cached) tokenizer, then build the sliding-window dataloader.
+
+    The merge loop is a plain Python loop by design (A1 out-of-scope: not optimized).
+    Retraining it every run would spend the 120s smoke budget on the wrong thing, so
+    the result is cached and reused whenever the corpus is unchanged (keyed by hash).
+    """
+    corpus_text = Path(config.corpus_path).read_text()
+    corpus_hash = _corpus_hash(corpus_text)
+
+    tok_path = Path(config.tokenizer_path)
+    hash_path = tok_path.with_suffix(tok_path.suffix + ".hash")
+
+    if tok_path.exists() and hash_path.exists() and hash_path.read_text().strip() == corpus_hash:
+        tokenizer = BPETokenizer.load(tok_path)
+    else:
+        tokenizer = BPETokenizer()
+        tokenizer.train(corpus_text, config.vocab_size)
+        tokenizer.save(tok_path)
+        hash_path.parent.mkdir(parents=True, exist_ok=True)
+        hash_path.write_text(corpus_hash)
+
+    token_ids = tokenizer.encode(corpus_text)
+    dataset = CorpusDataset(token_ids, config.seq_len)
+    loader = make_dataloader(dataset, config)
+    return tokenizer, loader
+
+
+def build_model(config: GPTConfig) -> GPTModel:
+    return GPTModel(config).to(config.device)
+
+
+def build_optimizer(model: GPTModel, config: GPTConfig) -> AdamW:
+    return AdamW(model.parameters(), lr=config.learning_rate)
+
+
+def lr_lambda(step: int, warmup_steps: int, max_steps: int, lr_min_ratio: float) -> float:
+    """Linear warmup, then cosine decay to `learning_rate * lr_min_ratio`."""
+    if warmup_steps > 0 and step < warmup_steps:
+        return (step + 1) / warmup_steps
+    decay_steps = max(1, max_steps - warmup_steps)
+    progress = min(1.0, (step - warmup_steps) / decay_steps)
+    cosine = 0.5 * (1.0 + math.cos(math.pi * progress))
+    return lr_min_ratio + (1.0 - lr_min_ratio) * cosine
+
+
+def build_scheduler(optimizer: AdamW, config: GPTConfig) -> LambdaLR:
+    return LambdaLR(
+        optimizer,
+        lr_lambda=lambda step: lr_lambda(
+            step, config.warmup_steps, config.max_steps, config.lr_min_ratio
+        ),
+    )
+
+
+def save_checkpoint(
+    model: GPTModel,
+    optimizer: AdamW,
+    config: GPTConfig,
+    step: int,
+    tokenizer: BPETokenizer,
+) -> None:
+    """Atomic checkpoint write: temp file + `os.replace`, so an interrupted save can
+    never corrupt the previous checkpoint (AC-5 needs a reload that always works).
+    """
+    payload: dict[str, Any] = {
+        "model_state": model.state_dict(),
+        "optimizer_state": optimizer.state_dict(),
+        "config": {f: getattr(config, f) for f in config.__dataclass_fields__},
+        "step": step,
+        "tokenizer_vocab": {k: v.hex() for k, v in tokenizer.vocab.items()},
+        "tokenizer_merges": [[a.hex(), b.hex()] for a, b in tokenizer.merges],
+    }
+    path = Path(config.checkpoint_path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_suffix(path.suffix + ".tmp")
+    torch.save(payload, tmp)
+    os.replace(tmp, path)
+
+
+def training_loop(
+    model: GPTModel,
+    loader: DataLoader,
+    optimizer: AdamW,
+    scheduler: LambdaLR,
+    tokenizer: BPETokenizer,
+    config: GPTConfig,
+    wandb_run: Any | None = None,
+) -> list[float]:
+    model.train()
+    losses: list[float] = []
+    data_iter = iter(loader)
+
+    for step in range(config.max_steps):
+        try:
+            inputs, labels = next(data_iter)
+        except StopIteration:
+            data_iter = iter(loader)
+            inputs, labels = next(data_iter)
+        inputs, labels = inputs.to(config.device), labels.to(config.device)
+
+        start = time.perf_counter()
+        optimizer.zero_grad()
+        logits = model(inputs)
+        loss = F.cross_entropy(logits.view(-1, config.vocab_size), labels.view(-1))
+        loss.backward()
+        torch.nn.utils.clip_grad_norm_(model.parameters(), config.clip_grad_norm)
+        optimizer.step()
+        scheduler.step()
+        elapsed = time.perf_counter() - start
+
+        losses.append(loss.item())
+
+        if wandb_run is not None and step % config.log_every == 0:
+            tokens_per_sec = config.batch_size * config.seq_len / max(elapsed, 1e-9)
+            wandb_run.log(
+                {
+                    "step": step,
+                    "train_loss": loss.item(),
+                    "perplexity": math.exp(min(loss.item(), 20.0)),
+                    "lr": scheduler.get_last_lr()[0],
+                    "tokens_per_sec": tokens_per_sec,
+                }
+            )
+
+        if step % config.sample_every == 0:
+            sample_ids = torch.tensor(
+                [tokenizer.encode(config.sample_prompt)], device=config.device
+            )
+            generated = generate(
+                model,
+                sample_ids,
+                max_new=config.max_new_tokens,
+                use_cache=False,
+                temperature=config.temperature,
+                top_k=config.top_k,
+            )
+            try:
+                sample_text = tokenizer.decode(generated[0].tolist())
+            except UnicodeDecodeError:
+                # An early, near-random model can sample raw bytes that do not form a
+                # valid UTF-8 sequence on their own — not a tokenizer bug, just not
+                # yet English. Log it as such rather than crashing the run over it.
+                sample_text = "<undecodable byte sequence>"
+            if wandb_run is not None:
+                wandb_run.log({"step": step, "sample": sample_text})
+            model.train()
+
+        if step % config.ckpt_every == 0 or step == config.max_steps - 1:
+            save_checkpoint(model, optimizer, config, step, tokenizer)
+
+    return losses
+
+
 def main() -> None:
     args = parse_args()
     config: GPTConfig = load_gpt_config(args.config)
     seed_everything(config.seed)
 
-    n_params_est = config.n_layers * 12 * config.d_model**2
     print(f"[ch1] config loaded: {args.config}")
     print(f"[ch1] run={config.run_name} device={config.device} seed={config.seed}")
-    print(
-        f"[ch1] model: d_model={config.d_model} n_heads={config.n_heads} "
-        f"(head_dim={config.head_dim}) n_layers={config.n_layers} "
-        f"vocab={config.vocab_size} seq_len={config.seq_len}"
-    )
-    print(f"[ch1] would train {config.max_steps} steps at lr={config.learning_rate}")
-    print(f"[ch1] ~{n_params_est / 1e6:.1f}M parameters (rough estimate)")
-    print("[ch1] SCAFFOLD: no training loop yet — that is spec A3. Config path verified.")
+
+    tokenizer, loader = build_tokenizer_and_loader(config)
+    model = build_model(config)
+    print(f"[ch1] model: {model.get_num_params() / 1e6:.2f}M parameters")
+
+    optimizer = build_optimizer(model, config)
+    scheduler = build_scheduler(optimizer, config)
+
+    wandb_run = None
+    if config.wandb_mode != "disabled":
+        import wandb
+
+        wandb_run = wandb.init(
+            project=config.wandb_project,
+            mode=config.wandb_mode,
+            config={f: getattr(config, f) for f in config.__dataclass_fields__},
+        )
+
+    losses = training_loop(model, loader, optimizer, scheduler, tokenizer, config, wandb_run)
+    print(f"[ch1] trained {config.max_steps} steps, final loss={losses[-1]:.4f}")
+    print(f"[ch1] checkpoint saved to {config.checkpoint_path}")
+
+    if wandb_run is not None:
+        wandb_run.finish()
 
 
 if __name__ == "__main__":

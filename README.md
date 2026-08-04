@@ -28,7 +28,9 @@ The chapters share a narrative, not a model. Chapter 1 proves understanding on a
 
 **Chapter 1 — speedup and quantization cost** *(spec A5)*
 
-*(speedup_curve.png and perplexity_tradeoff.png go here)*
+<!-- CH1_BENCHMARK_START -->
+*(filled by `ch1_architecture.benchmark` against the full-config checkpoint — tokens/sec and perplexity per quantization mode, plus the KV-cache speedup. The smoke config exercises this same code path end to end but its numbers are not meaningful: an undertrained toy model on a 5 KB corpus.)*
+<!-- CH1_BENCHMARK_END -->
 
 **Chapter 3 — serving** *(spec O3, numbers filled in by O5 against the live deployment)*
 

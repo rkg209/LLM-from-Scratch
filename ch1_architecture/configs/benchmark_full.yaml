@@ -1,0 +1,11 @@
+# GPU profile — launched manually on the GPU box, never from a session (CLAUDE.md #1).
+checkpoint_path: outputs/ch1/model.pt
+modes: [fp32, fp16, int8, int4]
+prompt: "First Citizen:"
+n_steps: 110
+warmup_steps: 10
+seed: 42
+device: cuda
+eval_corpus_path: ch1_architecture/data/corpus.txt
+results_path: eval/results/ch1_benchmark.json
+plots_dir: eval/results/plots

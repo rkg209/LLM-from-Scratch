@@ -23,6 +23,19 @@ class GPTConfig:
     seed: int
     device: str  # "cpu" | "cuda"
     run_name: str  # W&B run name
+    corpus_path: str
+    tokenizer_path: str
+    warmup_steps: int
+    lr_min_ratio: float
+    ckpt_every: int
+    sample_every: int
+    sample_prompt: str
+    max_new_tokens: int
+    temperature: float
+    top_k: int
+    checkpoint_path: str
+    wandb_project: str
+    wandb_mode: str  # "disabled" | "offline" | "online"
 
     def __post_init__(self) -> None:
         # Caught here or caught as a silently scrambled head dimension three hours into
@@ -41,3 +54,29 @@ class GPTConfig:
 
 def load_gpt_config(path: Path | str) -> GPTConfig:
     return _load_config(path, GPTConfig)
+
+
+@dataclass(frozen=True)
+class BenchmarkConfig:
+    checkpoint_path: str
+    modes: list[str]  # subset of quantize.MODES, e.g. ["fp32", "fp16", "int8", "int4"]
+    prompt: str
+    n_steps: int  # total generation steps measured; the loop length itself
+    warmup_steps: int
+    seed: int
+    device: str  # "cpu" | "cuda"
+    eval_corpus_path: str
+    results_path: str
+    plots_dir: str
+
+    def __post_init__(self) -> None:
+        if self.device not in {"cpu", "cuda"}:
+            raise ValueError(f"device must be 'cpu' or 'cuda', got {self.device!r}")
+        if self.warmup_steps >= self.n_steps:
+            raise ValueError(
+                f"warmup_steps ({self.warmup_steps}) must be < n_steps ({self.n_steps})"
+            )
+
+
+def load_benchmark_config(path: Path | str) -> BenchmarkConfig:
+    return _load_config(path, BenchmarkConfig)

@@ -21,13 +21,22 @@ ENV PATH="/opt/venv/bin:$PATH"
 
 # Only the ch3 extra + its own dependency closure is compiled -- torch/transformers (ch1/ch2)
 # never enter this image; the served artifact is a GGUF, not a fine-tune checkpoint.
-COPY pyproject.toml /build/pyproject.toml
+# README.md has to come along too: hatchling's build backend reads pyproject.toml's own
+# `readme = "README.md"` field and fails metadata generation if the file isn't there.
+COPY pyproject.toml README.md /build/
 COPY eval /build/eval
 COPY monitoring /build/monitoring
 COPY ch3_operation /build/ch3_operation
 RUN pip install --no-cache-dir /build[ch3]
 
 FROM python:3.12-slim AS final
+
+# llama-cpp-python's compiled libllama.so is linked against libgomp (OpenMP) -- present
+# transitively via build-essential in the builder stage, but not in a bare slim image, so
+# the final image needs its own runtime copy even though the compiler itself does not
+# survive here (AC-7 is about the compiler, not this one runtime shared library).
+RUN apt-get update && apt-get install -y --no-install-recommends libgomp1 \
+    && rm -rf /var/lib/apt/lists/*
 
 RUN groupadd --system reviewer && useradd --system --gid reviewer --create-home reviewer
 

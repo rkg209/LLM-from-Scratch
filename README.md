@@ -85,12 +85,15 @@ flowchart TD
 | Frontier API (3-shot) | — | — | — |
 <!-- EVAL_TABLE_END -->
 
-The holdout is 40 records (30 hand-written synthetic-clean, 10 mined from real Java/Spring
-code), built and frozen before any fine-tuning token was spent, and deduplicated against
-both the training set and the earlier C1 stub set by content hash (`ch2_adaptation/holdout_curator.py`).
-No training, data-generation, or prompt-tuning code may read it — a repo hook enforces
-that unconditionally. See [`docs/finetune-vs-prompting.md`](docs/finetune-vs-prompting.md)
-for what this table means and where the fine-tune lost.
+The holdout is **specified** at 40 records (30 hand-written synthetic-clean, 10 mined from
+real Java/Spring code), to be built and frozen before any fine-tuning token is spent, and
+deduplicated against both the training set and the earlier C1 stub set by content hash
+(`ch2_adaptation/holdout_curator.py`). Once frozen, no training, data-generation, or
+prompt-tuning code may read it — a repo hook enforces that unconditionally. **Current
+state:** 30 synthetic records are staged in `eval/staging/`; the 10 mined records and the
+freeze step are pending — see `specs/STATUS.md` (spec C2) for status. See
+[`docs/finetune-vs-prompting.md`](docs/finetune-vs-prompting.md) for what this table will
+mean once it is filled.
 
 **Chapter 1 — speedup and quantization cost** *(spec A5)*
 
@@ -129,13 +132,13 @@ signal. The comparison in the table above is honest about what it's measuring: w
 model's live few-shot performance on the narrow task it was taught — not whether a small
 model independently rediscovered code review.
 
-The eval set is independent of the training data and only partly real — 30 records are
-synthetic-clean, 10 are mined from real Java/Spring code, and all 40 are deduplicated by
-content hash against everything used in training or prompting. Where the fine-tuned model
-loses, the table above says so next to where it wins — no metric is hidden because it
-doesn't flatter the result. The cost/latency/privacy argument (a 1.5B model on a CPU box,
-no per-request API cost, no code leaving the network) holds regardless of which system
-wins on raw accuracy.
+The eval set is designed to be independent of the training data and only partly real — 30
+records synthetic-clean, 10 mined from real Java/Spring code, all 40 deduplicated by
+content hash against everything used in training or prompting, once frozen (pending —
+spec C2). Where the fine-tuned model loses, the table above will say so next to where it
+wins — no metric will be hidden because it doesn't flatter the result. The cost/latency/
+privacy argument (a 1.5B model on a CPU box, no per-request API cost, no code leaving the
+network) holds regardless of which system wins on raw accuracy.
 
 Chapter 1's model is a **toy**, trained on a small corpus, built to demonstrate the
 mechanics of attention, training, caching, and quantization from first principles. Its

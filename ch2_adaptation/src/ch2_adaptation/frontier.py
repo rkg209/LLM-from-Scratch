@@ -7,9 +7,27 @@ module imports cleanly in the base+dev CI environment, which never installs it.
 from __future__ import annotations
 
 import os
-from typing import Protocol
+from typing import TYPE_CHECKING, Any, Protocol
 
 from ch2_adaptation.baseline import Usage
+
+if TYPE_CHECKING:
+    from pydantic import BaseModel
+
+
+def _to_gemini_response_schema(model: type[BaseModel]) -> dict[str, Any]:
+    """Convert a Pydantic model to a schema Gemini's `response_schema` will accept.
+
+    Gemini's structured-output schema is a restricted subset of OpenAPI and does not
+    support `additionalProperties` -- the API rejects the request outright with
+    `Unknown name "additional_properties"` if it is present. Pydantic's own
+    `model_json_schema()` always emits it (as `false`) for a model with
+    `extra="forbid"`, which `ReviewOutput` needs for its own local validation. Strip the
+    unsupported key here rather than relaxing that validation.
+    """
+    schema = model.model_json_schema()
+    schema.pop("additionalProperties", None)
+    return schema
 
 
 class FrontierClient(Protocol):
@@ -59,6 +77,7 @@ class GeminiClient:
         from ch2_adaptation.schema import ReviewOutput
 
         client = genai.Client(api_key=api_key)
+        response_schema = _to_gemini_response_schema(ReviewOutput)
         outputs: list[str] = []
         input_tokens = 0
         output_tokens = 0
@@ -71,7 +90,7 @@ class GeminiClient:
                     temperature=self.temperature,
                     max_output_tokens=self.max_new_tokens,
                     response_mime_type="application/json",
-                    response_schema=ReviewOutput,
+                    response_schema=response_schema,
                 ),
             )
             outputs.append(response.text or "")

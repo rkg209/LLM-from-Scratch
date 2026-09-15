@@ -8,9 +8,22 @@ from ch2_adaptation.baseline import Usage
 from ch2_adaptation.frontier import (
     GeminiClient,
     StubFrontierClient,
+    _to_gemini_response_schema,
     estimate_cost_usd,
     make_client,
 )
+from ch2_adaptation.schema import ReviewOutput
+
+
+def test_to_gemini_response_schema_strips_additional_properties() -> None:
+    """Gemini's response_schema rejects `additionalProperties` outright (a real 400 from
+    the live API, reproduced against baseline_full.yaml -- see progress_report.md); the
+    helper must remove it, not just leave it for the caller to notice."""
+    schema = _to_gemini_response_schema(ReviewOutput)
+
+    assert "additionalProperties" not in schema
+    assert schema["required"] == ["severity", "category", "line", "issue", "suggested_fix"]
+    assert schema["properties"]["severity"]["enum"] == ["critical", "major", "minor", "info"]
 
 
 def test_estimate_cost_usd_raises_if_prices_unset(monkeypatch: pytest.MonkeyPatch) -> None:

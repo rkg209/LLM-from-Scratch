@@ -13,6 +13,7 @@ from __future__ import annotations
 import argparse
 import statistics
 import time
+import urllib.error
 import urllib.request
 from dataclasses import dataclass
 from pathlib import Path
@@ -37,8 +38,13 @@ def load_benchmark_config(path: Path | str) -> BenchmarkConfig:
     return load_config(path, BenchmarkConfig)
 
 
-def send_one_request(url: str, timeout_s: float = 60.0) -> float:
-    """POST one review request; return its wall-clock latency in seconds."""
+def send_one_request(url: str, timeout_s: float = 60.0) -> tuple[float, int]:
+    """POST one review request; return its (wall-clock latency in seconds, HTTP status).
+
+    A non-2xx response (e.g. the documented 422 the API returns when the model fails to
+    emit schema-valid JSON) is not a network failure here -- it is a real, expected outcome
+    of this API and must be timed and counted, not raised past this function.
+    """
     payload = f'{{"code": {_BENCHMARK_CODE!r}}}'.replace("'", '"').encode()
     request = urllib.request.Request(
         f"{url.rstrip('/')}/v1/review",
@@ -47,16 +53,29 @@ def send_one_request(url: str, timeout_s: float = 60.0) -> float:
         method="POST",
     )
     start = time.perf_counter()
-    with urllib.request.urlopen(request, timeout=timeout_s) as response:
-        response.read()
-    return time.perf_counter() - start
+    try:
+        with urllib.request.urlopen(request, timeout=timeout_s) as response:
+            response.read()
+            status = response.status
+    except urllib.error.HTTPError as error:
+        error.read()
+        status = error.code
+    return time.perf_counter() - start, status
 
 
 def benchmark(url: str, n_requests: int) -> dict[str, float]:
+    """Fire `n_requests` sequentially and report latency percentiles and error rate.
+
+    `throughput_rps` is sequential throughput (n_requests / total wall time of one
+    request after another) -- what NFR-3's "single-user load" asks for, not a
+    concurrent-load figure.
+    """
     if n_requests < 1:
         raise ValueError(f"n_requests must be positive, got {n_requests}")
 
-    latencies = [send_one_request(url) for _ in range(n_requests)]
+    results = [send_one_request(url) for _ in range(n_requests)]
+    latencies = [latency for latency, _status in results]
+    n_errors = sum(1 for _latency, status in results if status >= 400)
     total_time = sum(latencies)
 
     return {
@@ -64,6 +83,8 @@ def benchmark(url: str, n_requests: int) -> dict[str, float]:
         "p50_s": statistics.median(latencies),
         "p99_s": statistics.quantiles(latencies, n=100)[98] if n_requests >= 2 else latencies[0],
         "throughput_rps": n_requests / total_time if total_time > 0 else 0.0,
+        "n_errors": n_errors,
+        "error_rate": n_errors / n_requests,
     }
 
 

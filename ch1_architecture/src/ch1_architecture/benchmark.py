@@ -172,6 +172,10 @@ def _update_readme(results: dict[str, dict[str, float]], kv_cache: dict[str, flo
     update_readme_section(README_PATH, README_MARKER, "\n".join(lines))
 
 
+def _is_smoke_run(config_path: Path, checkpoint_path: str) -> bool:
+    return "smoke" in Path(config_path).stem or "smoke" in checkpoint_path
+
+
 def main() -> None:
     args = parse_args()
     config: BenchmarkConfig = load_benchmark_config(args.config)
@@ -219,7 +223,13 @@ def main() -> None:
     }
     write_json_atomic(payload, config.results_path)
     _write_plots(results, config.plots_dir)
-    _update_readme(results, kv_cache_block)
+    if _is_smoke_run(args.config, config.checkpoint_path):
+        print(
+            "[ch1-benchmark] smoke run detected — skipping README update; these numbers "
+            "are a toy model on a tiny corpus and are not meaningful (CLAUDE.md honest-metrics)."
+        )
+    else:
+        _update_readme(results, kv_cache_block)
     print(f"[ch1-benchmark] wrote {config.results_path} and plots to {config.plots_dir}")
 
 

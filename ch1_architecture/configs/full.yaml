@@ -1,12 +1,27 @@
 # GPU profile — launched manually on the GPU box, never from a session (CLAUDE.md #1).
 # The GPU-budget hook blocks any session command that targets this file.
-vocab_size: 50257
+#
+# vocab_size/max_steps/warmup_steps/ckpt_every/sample_every were re-derived from a real
+# measurement, not left at their original values — see ACTION_PLAN_TO_RESULTS.md action 3
+# and progress_report.md. The original vocab_size: 50257 against this 400,000-character
+# corpus gave an embedding table of ~25.7M params (57.6% of the ~44.6M-param model) and,
+# at max_steps: 5000 x batch_size: 32 x seq_len: 256 = 40.96M training tokens against a
+# corpus that yields roughly 142K-196K tokens depending on vocab size, implied on the
+# order of 350-500 epochs. That combination is a strong prior for severe overfitting and
+# a model that never becomes "recognizably English" (A3 AC-7). vocab_size: 4096 was
+# chosen because it was measured (BPETokenizer.train on the real corpus) to yield 153,512
+# tokens over the full corpus and an embedding table that is 10.0% of a ~21.0M-param
+# model — proportionate, not dominant. max_steps is set to keep total training tokens
+# within roughly 10x the corpus token count, the ceiling this project's own action plan
+# names as a reasonable overfitting bound; warmup_steps/ckpt_every/sample_every are
+# scaled down from the original 5000-step schedule in the same proportion.
+vocab_size: 4096
 d_model: 512
 n_heads: 8
 n_layers: 6
 seq_len: 256
 batch_size: 32
-max_steps: 5000
+max_steps: 200
 learning_rate: 0.0003
 clip_grad_norm: 1.0
 log_every: 10
@@ -15,10 +30,10 @@ device: cuda
 run_name: ch1-full
 corpus_path: ch1_architecture/data/corpus.txt
 tokenizer_path: outputs/ch1/tokenizer.json
-warmup_steps: 200
+warmup_steps: 10
 lr_min_ratio: 0.1
-ckpt_every: 500
-sample_every: 250
+ckpt_every: 50
+sample_every: 25
 sample_prompt: "First Citizen:"
 max_new_tokens: 100
 temperature: 0.8

@@ -15,10 +15,15 @@ from ch2_adaptation.baseline import Usage
 if TYPE_CHECKING:
     from pydantic import BaseModel
 
-# Gemini's free tier caps gemini-2.5-flash at 5 requests/minute (a documented, public
-# rate limit, not a $ price -- unlike estimate_cost_usd, this is fine to name directly).
-# Padded above the bare 12s/request the limit implies, since request latency itself eats
-# into the window.
+# Gemini's free tier is per-minute rate-limited on every model this project has used
+# (5 RPM measured live against gemini-2.5-flash) -- a documented, public rate limit, not
+# a $ price, so unlike estimate_cost_usd this is fine to name directly. 13s/request is
+# padded above the bare 12s a 5 RPM cap implies, since request latency itself eats into
+# the window; it is also comfortably under the higher per-minute caps reported for
+# gemini-2.5-flash-lite and gemini-2.0-flash. Note pacing/backoff only helps against a
+# per-*minute* quota -- a per-*day* quota (also hit live, 20 RPD on gemini-2.5-flash for
+# this project's key) cannot be worked around by retrying; that needs a different model
+# or waiting for the daily reset, which is why the configs moved off gemini-2.5-flash.
 _MIN_REQUEST_INTERVAL_S = 13.0
 _MAX_RATE_LIMIT_RETRIES = 6
 

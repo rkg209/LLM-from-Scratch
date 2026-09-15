@@ -3,9 +3,16 @@
 # matches its full-run pattern) -- correct, since this downloads ~3GB and calls a paid-tier-
 # capable API. Run it by hand: GEMINI_API_KEY=... uv run python -m ch2_adaptation.baseline
 # --config ch2_adaptation/configs/baseline_full.yaml
+#
+# frontier_model_tag was gemini-2.5-flash (per specs/05-C1 and specs/07-C3) until a real
+# run against this stub set (24 records) hit a live free-tier quota of 20
+# requests/day on that model for this key -- fewer than the 24 needed to complete a
+# single run. Switched to gemini-2.5-flash-lite, whose free tier is reported around
+# 1,000 RPD -- see progress_report.md's Action Plan item 4 entries for the full
+# diagnosis. Still Gemini's current "flash" family; a defensible frontier comparison.
 base_model_tag: Qwen/Qwen2.5-Coder-1.5B-Instruct
 frontier_provider: gemini
-frontier_model_tag: gemini-2.5-flash
+frontier_model_tag: gemini-2.5-flash-lite
 stub_set_path: eval/stub/stub_eval.jsonl
 results_path: eval/results/baselines.json
 max_new_tokens: 256

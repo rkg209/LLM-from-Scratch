@@ -4,9 +4,11 @@
 # model is. Requires EVAL_CONTEXT=1 to read the holdout; run by hand, before eval_full.yaml:
 #   EVAL_CONTEXT=1 GEMINI_API_KEY=... uv run python -m ch2_adaptation.baseline \
 #     --config ch2_adaptation/configs/baseline_holdout.yaml
+# frontier_model_tag switched from gemini-2.5-flash to gemini-2.5-flash-lite -- see
+# baseline_full.yaml's comment and progress_report.md (Action Plan item 4) for why.
 base_model_tag: Qwen/Qwen2.5-Coder-1.5B-Instruct
 frontier_provider: gemini
-frontier_model_tag: gemini-2.5-flash
+frontier_model_tag: gemini-2.5-flash-lite
 stub_set_path: eval/holdout/holdout.jsonl
 results_path: eval/results/baselines_holdout.json
 max_new_tokens: 256

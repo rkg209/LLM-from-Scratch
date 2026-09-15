@@ -8,6 +8,7 @@ from ch2_adaptation.baseline import Usage
 from ch2_adaptation.frontier import (
     GeminiClient,
     StubFrontierClient,
+    _extract_retry_delay_s,
     _to_gemini_response_schema,
     estimate_cost_usd,
     make_client,
@@ -24,6 +25,39 @@ def test_to_gemini_response_schema_strips_additional_properties() -> None:
     assert "additionalProperties" not in schema
     assert schema["required"] == ["severity", "category", "line", "issue", "suggested_fix"]
     assert schema["properties"]["severity"]["enum"] == ["critical", "major", "minor", "info"]
+
+
+class _FakeQuotaError:
+    """Mimics the shape of google.genai.errors.ClientError.details for a 429 RESOURCE_EXHAUSTED
+    response -- the real shape reproduced live against baseline_full.yaml's stub-set run."""
+
+    def __init__(self, details: dict) -> None:
+        self.details = details
+
+
+def test_extract_retry_delay_s_reads_the_real_429_response_shape() -> None:
+    error = _FakeQuotaError(
+        {
+            "error": {
+                "code": 429,
+                "status": "RESOURCE_EXHAUSTED",
+                "details": [
+                    {"@type": "type.googleapis.com/google.rpc.Help", "links": []},
+                    {
+                        "@type": "type.googleapis.com/google.rpc.RetryInfo",
+                        "retryDelay": "30s",
+                    },
+                ],
+            }
+        }
+    )
+
+    assert _extract_retry_delay_s(error) == pytest.approx(30.0)
+
+
+def test_extract_retry_delay_s_returns_none_without_retry_info() -> None:
+    assert _extract_retry_delay_s(_FakeQuotaError({"error": {"details": []}})) is None
+    assert _extract_retry_delay_s(object()) is None
 
 
 def test_estimate_cost_usd_raises_if_prices_unset(monkeypatch: pytest.MonkeyPatch) -> None:

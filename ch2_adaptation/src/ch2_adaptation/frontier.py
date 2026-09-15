@@ -7,12 +7,20 @@ module imports cleanly in the base+dev CI environment, which never installs it.
 from __future__ import annotations
 
 import os
+import time
 from typing import TYPE_CHECKING, Any, Protocol
 
 from ch2_adaptation.baseline import Usage
 
 if TYPE_CHECKING:
     from pydantic import BaseModel
+
+# Gemini's free tier caps gemini-2.5-flash at 5 requests/minute (a documented, public
+# rate limit, not a $ price -- unlike estimate_cost_usd, this is fine to name directly).
+# Padded above the bare 12s/request the limit implies, since request latency itself eats
+# into the window.
+_MIN_REQUEST_INTERVAL_S = 13.0
+_MAX_RATE_LIMIT_RETRIES = 6
 
 
 def _to_gemini_response_schema(model: type[BaseModel]) -> dict[str, Any]:
@@ -28,6 +36,22 @@ def _to_gemini_response_schema(model: type[BaseModel]) -> dict[str, Any]:
     schema = model.model_json_schema()
     schema.pop("additionalProperties", None)
     return schema
+
+
+def _extract_retry_delay_s(error: Any) -> float | None:
+    """Pull the server-suggested retry delay (seconds) out of a 429's error body, if any."""
+    details = getattr(error, "details", None)
+    if not isinstance(details, dict):
+        return None
+    for item in details.get("error", {}).get("details", []):
+        if str(item.get("@type", "")).endswith("RetryInfo"):
+            delay = str(item.get("retryDelay", ""))
+            if delay.endswith("s"):
+                try:
+                    return float(delay[:-1])
+                except ValueError:
+                    return None
+    return None
 
 
 class FrontierClient(Protocol):
@@ -72,27 +96,49 @@ class GeminiClient:
         estimate_cost_usd(0, 0)
 
         from google import genai
+        from google.genai import errors as genai_errors
         from google.genai import types
 
         from ch2_adaptation.schema import ReviewOutput
 
         client = genai.Client(api_key=api_key)
         response_schema = _to_gemini_response_schema(ReviewOutput)
+        config = types.GenerateContentConfig(
+            temperature=self.temperature,
+            max_output_tokens=self.max_new_tokens,
+            response_mime_type="application/json",
+            response_schema=response_schema,
+        )
         outputs: list[str] = []
         input_tokens = 0
         output_tokens = 0
+        last_request_at: float | None = None
 
         for prompt in prompts:
-            response = client.models.generate_content(
-                model=self.model_tag,
-                contents=prompt,
-                config=types.GenerateContentConfig(
-                    temperature=self.temperature,
-                    max_output_tokens=self.max_new_tokens,
-                    response_mime_type="application/json",
-                    response_schema=response_schema,
-                ),
-            )
+            # Proactively pace requests to the free tier's rate limit rather than only
+            # reacting to a 429 after the fact -- the SDK's own built-in retry does not
+            # wait long enough for a per-minute quota to actually reset.
+            if last_request_at is not None:
+                elapsed = time.monotonic() - last_request_at
+                if elapsed < _MIN_REQUEST_INTERVAL_S:
+                    time.sleep(_MIN_REQUEST_INTERVAL_S - elapsed)
+
+            response = None
+            for attempt in range(_MAX_RATE_LIMIT_RETRIES):
+                try:
+                    response = client.models.generate_content(
+                        model=self.model_tag, contents=prompt, config=config
+                    )
+                    break
+                except genai_errors.ClientError as error:
+                    is_last_attempt = attempt == _MAX_RATE_LIMIT_RETRIES - 1
+                    if error.code != 429 or is_last_attempt:
+                        raise
+                    delay = _extract_retry_delay_s(error) or float(2**attempt)
+                    time.sleep(delay)
+            last_request_at = time.monotonic()
+            assert response is not None  # the loop above always returns or raises
+
             outputs.append(response.text or "")
             usage = response.usage_metadata
             if usage is not None:

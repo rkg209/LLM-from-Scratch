@@ -4,14 +4,23 @@ build_provenance -- driven entirely by a fake client, no network, no torch (spec
 from __future__ import annotations
 
 import json
+from pathlib import Path
 
+import pytest
 from ch2_adaptation.baseline import Usage
 from ch2_adaptation.data_gen import (
     BUG_INJECTION_PROMPT_TEMPLATE,
+    InjectionOutput,
+    StubInjectionClient,
+    build_injection_prompt,
     build_provenance,
+    changed_lines,
     dedup_against_holdout,
     dedup_within_training_set,
+    filter_line_mismatches,
+    generate_with_checkpoints,
     inject_and_label,
+    parse_injections,
     split_train_val,
 )
 
@@ -192,3 +201,127 @@ def test_prompt_template_hash_is_stable_for_the_locked_template() -> None:
         split_seed=1,
     )
     assert provenance.prompt_template_hash == expected
+
+
+# --- line-label check, response model, checkpointing, smoke stub -------------------------
+
+CLEAN = "void f() {\n    int a = 1;\n    use(a);\n    log();\n    done();\n    end();\n}"
+
+
+def test_changed_lines_finds_a_replaced_line_and_ignores_reindentation() -> None:
+    buggy = "void f() {\n  int a = 0;\n  use(a);\n  log();\n  done();\n  end();\n}"
+    assert changed_lines(CLEAN, buggy) == {2}
+
+
+def test_changed_lines_marks_both_sides_of_a_pure_deletion() -> None:
+    buggy = "void f() {\n    int a = 1;\n    log();\n    done();\n    end();\n}"
+    assert changed_lines(CLEAN, buggy) == {2, 3}  # the lines either side of the removed use(a)
+
+
+def test_filter_line_mismatches_keeps_labels_within_tolerance_and_drops_the_rest() -> None:
+    buggy = CLEAN.replace("int a = 1;", "int a = 0;")  # change on line 2
+    near = json.loads(injection(code=buggy, line=4))
+    far = json.loads(injection(code=buggy, line=7))
+    kept, n_dropped = filter_line_mismatches([(CLEAN, near), (CLEAN, far)])
+    assert kept == [near]
+    assert n_dropped == 1
+
+
+def test_filter_line_mismatches_drops_a_response_that_changed_nothing() -> None:
+    unchanged = json.loads(injection(code=CLEAN, line=2))
+    assert filter_line_mismatches([(CLEAN, unchanged)]) == ([], 1)
+
+
+def test_parse_injections_keeps_each_record_paired_with_its_snippet() -> None:
+    pairs = parse_injections(["clean a", "clean b"], ["not json", injection(code="b2")])
+    assert [(clean, record["code"]) for clean, record in pairs] == [("clean b", "b2")]
+
+
+def test_parse_injections_rejects_misaligned_outputs() -> None:
+    with pytest.raises(ValueError, match="responses"):
+        parse_injections(["a", "b"], [injection()])
+
+
+def test_injection_output_requires_code_on_top_of_the_review_fields() -> None:
+    assert set(InjectionOutput.model_fields) == {
+        "code",
+        "severity",
+        "category",
+        "line",
+        "issue",
+        "suggested_fix",
+    }
+
+
+class CountingClient:
+    """Echoes a numbered response per prompt; can fail after N calls to simulate a crash."""
+
+    def __init__(self, fail_after_calls: int | None = None) -> None:
+        self.calls = 0
+        self.prompts_seen: list[str] = []
+        self.fail_after_calls = fail_after_calls
+
+    def generate(self, prompts: list[str]) -> tuple[list[str], Usage]:
+        if self.fail_after_calls is not None and self.calls >= self.fail_after_calls:
+            raise RuntimeError("simulated quota exhaustion")
+        self.calls += 1
+        self.prompts_seen.extend(prompts)
+        return [f"out:{p}" for p in prompts], Usage(len(prompts), 1, 0.0, "free")
+
+
+def test_generate_with_checkpoints_resumes_after_a_crash_without_repeating_calls(
+    tmp_path: Path,
+) -> None:
+    prompts = [f"p{i}" for i in range(5)]
+    cache = tmp_path / "raw.jsonl"
+    with pytest.raises(RuntimeError, match="quota"):
+        generate_with_checkpoints(prompts, CountingClient(fail_after_calls=1), cache, 2)
+
+    resumed = CountingClient()
+    outputs, usage = generate_with_checkpoints(prompts, resumed, cache, 2)
+
+    assert outputs == [f"out:p{i}" for i in range(5)]
+    assert resumed.prompts_seen == ["p2", "p3", "p4"]  # the saved chunk was not re-requested
+    assert usage.input_tokens == 5  # usage from before the crash is still counted
+
+
+def test_generate_with_checkpoints_refuses_a_cache_from_different_prompts(tmp_path: Path) -> None:
+    cache = tmp_path / "raw.jsonl"
+    generate_with_checkpoints(["a", "b"], CountingClient(), cache, 2)
+    with pytest.raises(ValueError, match="does not match"):
+        generate_with_checkpoints(["x", "y"], CountingClient(), cache, 2)
+
+
+def test_generate_with_checkpoints_discards_a_truncated_final_line(tmp_path: Path) -> None:
+    cache = tmp_path / "raw.jsonl"
+    generate_with_checkpoints(["a", "b"], CountingClient(), cache, 1)
+    lines = cache.read_text().splitlines()
+    cache.write_text(lines[0] + "\n" + lines[1][:10])  # killed mid-write
+
+    resumed = CountingClient()
+    outputs, _ = generate_with_checkpoints(["a", "b"], resumed, cache, 1)
+    assert outputs == ["out:a", "out:b"]
+    assert resumed.prompts_seen == ["b"]
+
+
+def test_stub_injection_client_output_survives_parsing_and_the_line_check() -> None:
+    snippets = [CLEAN, "int g() {\n    return 1;\n}"]
+    outputs, _ = StubInjectionClient().generate([build_injection_prompt(s) for s in snippets])
+    kept, n_dropped = filter_line_mismatches(parse_injections(snippets, outputs))
+    assert len(kept) == 2
+    assert n_dropped == 0
+
+
+def test_build_provenance_records_line_mismatch_drops() -> None:
+    provenance = build_provenance(
+        frontier_model="m",
+        n_requested=3,
+        n_valid=1,
+        estimated_cost_usd=0.0,
+        actual_cost_usd=0.0,
+        train_path="t",
+        val_path="v",
+        split_seed=1,
+        n_dropped_line_mismatch=2,
+    )
+    assert provenance.to_json()["n_dropped_line_mismatch"] == 2

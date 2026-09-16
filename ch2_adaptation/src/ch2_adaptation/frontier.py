@@ -86,10 +86,20 @@ class GeminiClient:
     """Gemini 2.5 Flash, free tier. Native JSON mode sidesteps the markdown-fence problem
     that the base model is scored strictly against (see prompts.py)."""
 
-    def __init__(self, model_tag: str, temperature: float, max_new_tokens: int) -> None:
+    def __init__(
+        self,
+        model_tag: str,
+        temperature: float,
+        max_new_tokens: int,
+        response_model: type[BaseModel] | None = None,
+    ) -> None:
+        """`response_model` is the shape native JSON mode enforces. Defaults to
+        `ReviewOutput`; C3's data generation passes a model that also has `code`, because
+        a forced `ReviewOutput` schema strips that field and every injection gets dropped."""
         self.model_tag = model_tag
         self.temperature = temperature
         self.max_new_tokens = max_new_tokens
+        self.response_model = response_model
 
     def generate(self, prompts: list[str]) -> tuple[list[str], Usage]:
         api_key = os.environ.get("GEMINI_API_KEY")
@@ -107,7 +117,7 @@ class GeminiClient:
         from ch2_adaptation.schema import ReviewOutput
 
         client = genai.Client(api_key=api_key)
-        response_schema = _to_gemini_response_schema(ReviewOutput)
+        response_schema = _to_gemini_response_schema(self.response_model or ReviewOutput)
         config = types.GenerateContentConfig(
             temperature=self.temperature,
             max_output_tokens=self.max_new_tokens,
@@ -175,10 +185,14 @@ class StubFrontierClient:
 
 
 def make_client(
-    frontier_provider: str, model_tag: str, temperature: float, max_new_tokens: int
+    frontier_provider: str,
+    model_tag: str,
+    temperature: float,
+    max_new_tokens: int,
+    response_model: type[BaseModel] | None = None,
 ) -> FrontierClient:
     if frontier_provider == "stub":
         return StubFrontierClient()
     if frontier_provider == "gemini":
-        return GeminiClient(model_tag, temperature, max_new_tokens)
+        return GeminiClient(model_tag, temperature, max_new_tokens, response_model)
     raise ValueError(f"unknown frontier_provider: {frontier_provider!r}")

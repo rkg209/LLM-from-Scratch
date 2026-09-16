@@ -134,8 +134,12 @@ class DataGenConfig:
     seed: int
     wandb_mode: str
     wandb_project: str
+    raw_responses_path: str
+    checkpoint_every: int
 
     def __post_init__(self) -> None:
+        if self.checkpoint_every <= 0:
+            raise ValueError(f"checkpoint_every must be positive, got {self.checkpoint_every!r}")
         if not 0.0 < self.val_frac < 1.0:
             raise ValueError(f"val_frac must be in (0, 1), got {self.val_frac!r}")
         if self.n_snippets <= 0:

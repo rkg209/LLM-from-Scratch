@@ -61,3 +61,14 @@ def test_max_budget_usd_must_be_positive() -> None:
 def test_full_profile_target_size_matches_spec_amendment() -> None:
     config = load_data_gen_config(CONFIGS / "datagen_full.yaml")
     assert config.n_snippets * config.variants_per_snippet >= 270
+
+
+def test_checkpoint_every_must_be_positive() -> None:
+    config = load_data_gen_config(CONFIGS / "datagen_smoke.yaml")
+    with pytest.raises(ValueError, match="checkpoint_every"):
+        replace(config, checkpoint_every=0)
+
+
+def test_full_profile_checkpoints_to_a_gitignored_path() -> None:
+    config = load_data_gen_config(CONFIGS / "datagen_full.yaml")
+    assert config.raw_responses_path.startswith("outputs/")

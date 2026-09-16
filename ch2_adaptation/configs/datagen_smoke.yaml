@@ -17,3 +17,6 @@ max_budget_usd: 0.01
 seed: 42
 wandb_mode: disabled
 wandb_project: ch2-adaptation
+# Raw responses are appended here chunk by chunk, so an interrupted run resumes (see data_gen.py).
+raw_responses_path: outputs/datagen-smoke/raw_responses.jsonl
+checkpoint_every: 2

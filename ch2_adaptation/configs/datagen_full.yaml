@@ -27,3 +27,8 @@ max_budget_usd: 1.50
 seed: 42
 wandb_mode: online
 wandb_project: ch2-adaptation
+# Raw responses are appended here every `checkpoint_every` requests (~2 min at 13s pacing),
+# so a crash or exhausted daily quota partway through the ~65-minute run loses at most one
+# chunk. Re-running the same command resumes. Gitignored: outputs/.
+raw_responses_path: outputs/datagen-full/raw_responses.jsonl
+checkpoint_every: 10

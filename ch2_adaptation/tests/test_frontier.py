@@ -115,3 +115,16 @@ def test_gemini_client_generate_requires_an_api_key(monkeypatch: pytest.MonkeyPa
     client = GeminiClient("gemini-2.5-flash", 0.0, 256)
     with pytest.raises(RuntimeError, match="GEMINI_API_KEY"):
         client.generate(["prompt"])
+
+
+def test_make_client_passes_a_response_model_through_to_gemini() -> None:
+    """C3 needs a schema with `code`; a forced ReviewOutput schema stripped it live."""
+    from ch2_adaptation.data_gen import InjectionOutput
+
+    client = make_client("gemini", "some-model", 0.7, 64, response_model=InjectionOutput)
+    assert client.response_model is InjectionOutput
+    assert "code" in _to_gemini_response_schema(InjectionOutput)["properties"]
+
+
+def test_gemini_client_response_model_defaults_to_review_output() -> None:
+    assert make_client("gemini", "some-model", 0.7, 64).response_model is None

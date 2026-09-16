@@ -1,0 +1,322 @@
+{
+  "timestamp": "2026-09-16T07:35:15.872820+00:00",
+  "stub_set": "eval/stub/stub_eval.jsonl",
+  "stub_set_sha256": "d58145ebc1c687212209a743799e362b39f657568ef946323dd490c3f9d23fdc",
+  "schema_sha256": "8ec466370d593675fbbc9c22bc6643916381e70ed21ac09126460a638c12cadb",
+  "base_model": {
+    "model_tag": "Qwen/Qwen2.5-Coder-1.5B-Instruct",
+    "mode": "zero-shot",
+    "dtype": "float32",
+    "schema_validity_rate": 0.0,
+    "bug_catch_rate": 0.0,
+    "n_samples": 24,
+    "n_valid": 0,
+    "n_caught": 0,
+    "per_sample": [
+      {
+        "id": "stub-001",
+        "valid": false,
+        "caught": false,
+        "raw_output": "```json\n{\n  \"severity\": \"error\",\n  \"category\": \"code smell\",\n  \"line\": 3,\n  \"issue\": \"The `readAllBytes()` method is deprecated and should not be used for reading large files.\",\n  \"suggested_fix\": \"Use `Files.readAllBytes(Path)` instead.\"\n}\n```"
+      },
+      {
+        "id": "stub-002",
+        "valid": false,
+        "caught": false,
+        "raw_output": "```json\n{\n  \"severity\": \"info\",\n  \"category\": \"code smell\",\n  \"line\": 3,\n  \"issue\": \"The `trim()` method is unnecessary as the `getName()` method already returns a trimmed string.\",\n  \"suggested_fix\": \"Remove the `trim()` method call.\"\n}\n```"
+      },
+      {
+        "id": "stub-003",
+        "valid": false,
+        "caught": false,
+        "raw_output": "```json\n{\n  \"severity\": \"error\",\n  \"category\": \"logic\",\n  \"line\": 3,\n  \"issue\": \"The loop condition `i <= arr.length` is incorrect because it will always execute at least once when `i` equals `arr.length`, which would result in an index out of bounds exception.\",\n  \"suggested_fix\": \"Change the loop condition to `i < arr.length`.\"\n}\n```"
+      },
+      {
+        "id": "stub-004",
+        "valid": false,
+        "caught": false,
+        "raw_output": "```json\n{\n  \"severity\": \"info\",\n  \"category\": \"SQL Injection\",\n  \"line\": 3,\n  \"issue\": \"The SQL query is vulnerable to SQL injection because it directly concatenates user input into the SQL string without proper sanitization.\",\n  \"suggested_fix\": \"Use parameterized queries to prevent SQL injection.\"\n}\n```"
+      },
+      {
+        "id": "stub-005",
+        "valid": false,
+        "caught": false,
+        "raw_output": "```json\n{\n  \"severity\": \"info\",\n  \"category\": \"concurrency\",\n  \"line\": 3,\n  \"issue\": \"The `counter` variable is not thread-safe.\",\n  \"suggested_fix\": \"Use `AtomicInteger` instead of `int` for thread safety.\"\n}\n```"
+      },
+      {
+        "id": "stub-006",
+        "valid": false,
+        "caught": false,
+        "raw_output": "```json\n{\n  \"severity\": \"error\",\n  \"category\": \"logic\",\n  \"line\": 8,\n  \"issue\": \"StaticCache is not initialized before adding elements to it.\",\n  \"suggested_fix\": \"Initialize StaticCache before adding elements to it.\"\n}\n```"
+      },
+      {
+        "id": "stub-007",
+        "valid": false,
+        "caught": false,
+        "raw_output": "```json\n{\n  \"severity\": \"error\",\n  \"category\": \"logic\",\n  \"line\": 3,\n  \"issue\": \"Missing exception handling for repository.save() call.\",\n  \"suggested_fix\": \"Add a try-catch block around the repository.save() call to handle exceptions.\"\n}\n```"
+      },
+      {
+        "id": "stub-008",
+        "valid": false,
+        "caught": false,
+        "raw_output": "```json\n{\n  \"severity\": \"info\",\n  \"category\": \"logic\",\n  \"line\": 3,\n  \"issue\": \"The loop condition is always true, causing an infinite loop.\",\n  \"suggested_fix\": \"Change the loop condition to check if the ready flag has changed.\"\n}\n```"
+      },
+      {
+        "id": "stub-009",
+        "valid": false,
+        "caught": false,
+        "raw_output": "```json\n{\n  \"severity\": \"error\",\n  \"category\": \"logic\",\n  \"line\": 3,\n  \"issue\": \"The multiplication of an integer by `Integer.MAX_VALUE` can overflow.\",\n  \"suggested_fix\": \"Use `long` instead of `int` to avoid overflow.\"\n}\n```"
+      },
+      {
+        "id": "stub-010",
+        "valid": false,
+        "caught": false,
+        "raw_output": "```json\n{\n  \"severity\": \"info\",\n  \"category\": \"code smell\",\n  \"line\": 3,\n  \"issue\": \"Password hardcoding is a security risk.\",\n  \"suggested_fix\": \"Use environment variables or configuration files to store sensitive information.\"\n}\n```"
+      },
+      {
+        "id": "stub-011",
+        "valid": false,
+        "caught": false,
+        "raw_output": "```json\n{\n  \"severity\": \"warning\",\n  \"category\": \"code smell\",\n  \"line\": 3,\n  \"issue\": \"The `System.out.println` statement is used to print each item in the list, which can lead to performance issues if the list contains many elements.\",\n  \"suggested_fix\": \"Consider using a more efficient logging mechanism such as `logger.info(item)` from the SLF4J library.\"\n}\n```"
+      },
+      {
+        "id": "stub-012",
+        "valid": false,
+        "caught": false,
+        "raw_output": "```json\n{\n  \"severity\": \"error\",\n  \"category\": \"logic\",\n  \"line\": 3,\n  \"issue\": \"Division by zero error\",\n  \"suggested_fix\": \"Add a check to ensure `count` is not zero before performing the division.\"\n}\n```"
+      },
+      {
+        "id": "stub-013",
+        "valid": false,
+        "caught": false,
+        "raw_output": "```json\n{\n  \"severity\": \"error\",\n  \"category\": \"logic\",\n  \"line\": 3,\n  \"issue\": \"Index out of bounds exception\",\n  \"suggested_fix\": \"Check if the index is within the bounds of the array before accessing it.\"\n}\n```"
+      },
+      {
+        "id": "stub-014",
+        "valid": false,
+        "caught": false,
+        "raw_output": "```json\n{\n  \"severity\": \"error\",\n  \"category\": \"concurrency\",\n  \"line\": 3,\n  \"issue\": \"Synchronization issue: The `transfer` method is synchronized on both `a` and `b`, which can lead to deadlocks if multiple threads try to execute this method simultaneously.\",\n  \"suggested_fix\": \"Remove the synchronization on `b` to avoid potential deadlocks.\"\n}\n```"
+      },
+      {
+        "id": "stub-015",
+        "valid": false,
+        "caught": false,
+        "raw_output": "```json\n{\n  \"severity\": \"info\",\n  \"category\": \"logic\",\n  \"line\": 8,\n  \"issue\": \"The `contains` method does not handle cases where the list is empty.\",\n  \"suggested_fix\": \"Add a check to see if the list is empty before calling `contains`.\"\n}\n```"
+      },
+      {
+        "id": "stub-016",
+        "valid": false,
+        "caught": false,
+        "raw_output": "```json\n{\n  \"severity\": \"error\",\n  \"category\": \"logic\",\n  \"line\": 3,\n  \"issue\": \"The comparison operator `==` should be used for primitive types like `String`, but it is being used with a reference type (`role`). This can lead to unexpected behavior.\",\n  \"suggested_fix\": \"Change the comparison operator from `==` to `equals()` to compare the string values correctly.\"\n}\n```"
+      },
+      {
+        "id": "stub-017",
+        "valid": false,
+        "caught": false,
+        "raw_output": "```json\n{\n  \"severity\": \"error\",\n  \"category\": \"design\",\n  \"line\": 3,\n  \"issue\": \"The `flags` list is static, which means it can only be accessed from within the same class. This makes it difficult to modify the list from outside the class.\",\n  \"suggested_fix\": \"Make the `flags` list non-static by removing the `static` keyword.\"\n}\n```"
+      },
+      {
+        "id": "stub-018",
+        "valid": false,
+        "caught": false,
+        "raw_output": "```json\n{\n  \"severity\": \"info\",\n  \"category\": \"logging\",\n  \"line\": 3,\n  \"issue\": \"The logger is logging sensitive information (username and password) which should not be logged in production environments.\",\n  \"suggested_fix\": \"Use a more secure logging mechanism that does not log sensitive information.\"\n}\n```"
+      },
+      {
+        "id": "stub-019",
+        "valid": false,
+        "caught": false,
+        "raw_output": "```json\n{\n  \"severity\": \"info\",\n  \"category\": \"code smell\",\n  \"line\": 3,\n  \"issue\": \"The `readLine` method does not handle input validation or error checking.\",\n  \"suggested_fix\": \"Add input validation to ensure that the user enters a valid line of text.\"\n}\n```"
+      },
+      {
+        "id": "stub-020",
+        "valid": false,
+        "caught": false,
+        "raw_output": "```json\n{\n  \"severity\": \"info\",\n  \"category\": \"concurrency\",\n  \"line\": 3,\n  \"issue\": \"Thread creation without synchronization can lead to race conditions.\",\n  \"suggested_fix\": \"Add synchronization around thread creation to ensure that only one thread can execute at a time.\"\n}\n```"
+      },
+      {
+        "id": "stub-021",
+        "valid": false,
+        "caught": false,
+        "raw_output": "```json\n{\n  \"severity\": \"error\",\n  \"category\": \"logic\",\n  \"line\": 3,\n  \"issue\": \"The method `total` does not handle cases where the key 'missing' is not present in the map.\",\n  \"suggested_fix\": \"Add a check to see if the key exists before attempting to retrieve its value.\"\n}\n```"
+      },
+      {
+        "id": "stub-022",
+        "valid": false,
+        "caught": false,
+        "raw_output": "```json\n{\n  \"severity\": \"error\",\n  \"category\": \"syntax\",\n  \"line\": 3,\n  \"issue\": \"The regular expression does not match the input string.\",\n  \"suggested_fix\": \"Change the regular expression to match the input string correctly.\"\n}\n```"
+      },
+      {
+        "id": "stub-023",
+        "valid": false,
+        "caught": false,
+        "raw_output": "```json\n{\n  \"severity\": \"error\",\n  \"category\": \"logic\",\n  \"line\": 3,\n  \"issue\": \"The `isEqual` method returns `true` if two doubles are equal, which is incorrect for floating-point comparison due to precision issues.\",\n  \"suggested_fix\": \"Use `Math.abs(a - b) < epsilon` where `epsilon` is a small positive value that represents the acceptable difference between two numbers.\"\n}\n```"
+      },
+      {
+        "id": "stub-024",
+        "valid": false,
+        "caught": false,
+        "raw_output": "```json\n{\n  \"severity\": \"error\",\n  \"category\": \"resource_management\",\n  \"line\": 3,\n  \"issue\": \"Resource leak: `rs` is not closed properly.\",\n  \"suggested_fix\": \"Add a try-with-resources statement to ensure that all resources are closed automatically.\"\n}\n```"
+      }
+    ]
+  },
+  "frontier_api": {
+    "model_tag": "gemini-3.5-flash-lite",
+    "mode": "3-shot",
+    "provider": "gemini",
+    "tier": "free",
+    "input_tokens": 18741,
+    "output_tokens": 2273,
+    "cost_usd": 0.0,
+    "schema_validity_rate": 1.0,
+    "bug_catch_rate": 0.9166666666666666,
+    "n_samples": 24,
+    "n_valid": 24,
+    "n_caught": 22,
+    "per_sample": [
+      {
+        "id": "stub-001",
+        "valid": true,
+        "caught": true,
+        "raw_output": "{\"severity\": \"major\", \"category\": \"resource-leak\", \"line\": 2, \"issue\": \"FileInputStream is created but never closed, leading to a file descriptor leak if an exception occurs before readAllBytes completes or if GC doesn't clean it up promptly.\", \"suggested_fix\": \"Use a try-with-resources statement to ensure the FileInputStream is automatically closed.\"}"
+      },
+      {
+        "id": "stub-002",
+        "valid": true,
+        "caught": true,
+        "raw_output": "{\n  \"severity\": \"critical\",\n  \"category\": \"null-pointer-dereference\",\n  \"line\": 2,\n  \"issue\": \"Chained method calls on user.getProfile() and getName() without null checks can throw a NullPointerException if either user's profile or the name is null.\",\n  \"suggested_fix\": \"Use Optional to safely navigate the object graph, e.g., Optional.ofNullable(user).map(User::getProfile).map(Profile::getName).map(String::trim).orElse(\\\"\\\")\"\n}"
+      },
+      {
+        "id": "stub-003",
+        "valid": true,
+        "caught": true,
+        "raw_output": "{\n  \"severity\": \"critical\",\n  \"category\": \"array-index-out-of-bounds\",\n  \"line\": 2,\n  \"issue\": \"The loop condition i <= arr.length allows i to reach arr.length, which causes an ArrayIndexOutOfBoundsException when accessing arr[i].\",\n  \"suggested_fix\": \"Change the loop condition from i <= arr.length to i < arr.length.\"\n}"
+      },
+      {
+        "id": "stub-004",
+        "valid": true,
+        "caught": true,
+        "raw_output": "{\n  \"severity\": \"critical\",\n  \"category\": \"sql-injection\",\n  \"line\": 2,\n  \"issue\": \"User input is directly concatenated into the SQL query string, allowing for SQL injection attacks.\",\n  \"suggested_fix\": \"Use a parameterized query by replacing string concatenation with placeholders (e.g., 'SELECT * FROM users WHERE name = ?') and passing the name parameter to jdbcTemplate.query.\"\n}"
+      },
+      {
+        "id": "stub-005",
+        "valid": true,
+        "caught": false,
+        "raw_output": "{\n  \"severity\": \"major\",\n  \"category\": \"thread-safety\",\n  \"line\": 1,\n  \"issue\": \"The counter variable is modified using counter++ which is a non-atomic read-modify-write operation, leading to race conditions in a multithreaded context.\",\n  \"suggested_fix\": \"Change counter to an AtomicInteger and use incrementAndGet(), or synchronize access to the increment method.\"\n}"
+      },
+      {
+        "id": "stub-006",
+        "valid": true,
+        "caught": false,
+        "raw_output": "{\n  \"severity\": \"major\",\n  \"category\": \"potential-out-of-memory\",\n  \"line\": 3,\n  \"issue\": \"Reading all chunks into an unbounded list without memory limits can cause OutOfMemoryError if the total data size is large.\",\n  \"suggested_fix\": \"Implement a size or memory limit check within the loop to avoid consuming all available heap space.\"\n}"
+      },
+      {
+        "id": "stub-007",
+        "valid": true,
+        "caught": true,
+        "raw_output": "{\n  \"severity\": \"major\",\n  \"category\": \"swallowed-exception\",\n  \"line\": 4,\n  \"issue\": \"The catch block swallows the exception silently without logging or rethrowing, making debugging failures difficult.\",\n  \"suggested_fix\": \"Log the exception using a logger or rethrow it as a custom runtime exception.\"\n}"
+      },
+      {
+        "id": "stub-008",
+        "valid": true,
+        "caught": true,
+        "raw_output": "{\n  \"severity\": \"critical\",\n  \"category\": \"busy-waiting\",\n  \"line\": 2,\n  \"issue\": \"A busy-wait loop checking a non-volatile variable 'ready' will consume 100% CPU and may never terminate due to lack of memory visibility.\",\n  \"suggested_fix\": \"Use proper synchronization mechanisms like wait/notify, a CountDownLatch, or declare 'ready' as volatile.\"\n}"
+      },
+      {
+        "id": "stub-009",
+        "valid": true,
+        "caught": true,
+        "raw_output": "{\n  \"severity\": \"critical\",\n  \"category\": \"integer-overflow\",\n  \"line\": 4,\n  \"issue\": \"Multiplying quantities by Integer.MAX_VALUE causes immediate integer overflow, wrapping around to incorrect negative or positive values.\",\n  \"suggested_fix\": \"Use Math.multiplyExact(q, Integer.MAX_VALUE) or use long accumulator to detect or prevent overflow.\"\n}"
+      },
+      {
+        "id": "stub-010",
+        "valid": true,
+        "caught": true,
+        "raw_output": "{\n  \"severity\": \"major\",\n  \"category\": \"hardcoded-credentials\",\n  \"line\": 2,\n  \"issue\": \"Database credentials such as password are hardcoded directly in the source code, posing a security risk.\",\n  \"suggested_fix\": \"Retrieve the password securely from environment variables, a configuration file, or a secure secrets manager.\"\n}"
+      },
+      {
+        "id": "stub-011",
+        "valid": true,
+        "caught": true,
+        "raw_output": "{\n  \"severity\": \"major\",\n  \"category\": \"unsafe-type-cast\",\n  \"line\": 2,\n  \"issue\": \"Unchecked cast from Object to List<String> can trigger a ClassCastException at runtime if the payload is not a List of strings.\",\n  \"suggested_fix\": \"Check if payload is an instance of List before casting, or validate elements using type-safe mapping.\"\n}"
+      },
+      {
+        "id": "stub-012",
+        "valid": true,
+        "caught": true,
+        "raw_output": "{\n  \"severity\": \"major\",\n  \"category\": \"integer-division\",\n  \"line\": 2,\n  \"issue\": \"Integer division is performed when total and count are both integers, resulting in truncation before conversion to double.\",\n  \"suggested_fix\": \"Cast either total or count to double before division, e.g., return (double) total / count;\"\n}"
+      },
+      {
+        "id": "stub-013",
+        "valid": true,
+        "caught": true,
+        "raw_output": "{\n  \"severity\": \"major\",\n  \"category\": \"array-index-out-of-bounds\",\n  \"line\": 2,\n  \"issue\": \"Accessing values[index + 1] without checking if the index plus one exceeds or equals the array length can throw an ArrayIndexOutOfBoundsException.\",\n  \"suggested_fix\": \"Validate that index + 1 is within the bounds of the array before accessing it, or throw an IllegalArgumentException.\"\n}"
+      },
+      {
+        "id": "stub-014",
+        "valid": true,
+        "caught": true,
+        "raw_output": "{\n  \"severity\": \"critical\",\n  \"category\": \"deadlock\",\n  \"line\": 1,\n  \"issue\": \"The method locks the 'this' instance (via synchronized modifier) while nested synchronization locks 'b', which creates a deadlock risk if another thread locks 'b' and then tries to acquire 'this'.\",\n  \"suggested_fix\": \"Remove the synchronized keyword from the method signature and use a consistent global lock ordering, or synchronize on accounts in a deterministic order based on their unique IDs.\"\n}"
+      },
+      {
+        "id": "stub-015",
+        "valid": true,
+        "caught": true,
+        "raw_output": "{\n  \"severity\": \"minor\",\n  \"category\": \"redundant-collection-operation\",\n  \"line\": 7,\n  \"issue\": \"The method manually iterates through the list to find the target and then performs redundant work by calling names.contains(target) at the end.\",\n  \"suggested_fix\": \"Remove the redundant names.contains(target) call and simply return false after the loop finishes.\"\n}"
+      },
+      {
+        "id": "stub-016",
+        "valid": true,
+        "caught": true,
+        "raw_output": "{\n  \"severity\": \"critical\",\n  \"category\": \"string-reference-equality\",\n  \"line\": 2,\n  \"issue\": \"Using the '==' operator compares object reference identities instead of string contents, which will fail if the provided role string is not interned or comes from a different instance.\",\n  \"suggested_fix\": \"Use role.equals(\\\"ADMIN\\\") or \\\"ADMIN\\\".equals(role) to correctly compare string values.\"\n}"
+      },
+      {
+        "id": "stub-017",
+        "valid": true,
+        "caught": true,
+        "raw_output": "{\n  \"severity\": \"major\",\n  \"category\": \"concurrency\",\n  \"line\": 2,\n  \"issue\": \"A static non-thread-safe collection (ArrayList) is accessed and mutated by instance methods without synchronization, leading to potential race conditions in a multithreaded environment.\",\n  \"suggested_fix\": \"Use a thread-safe collection like CopyOnWriteArrayList or synchronize access to the flags list.\"\n}"
+      },
+      {
+        "id": "stub-018",
+        "valid": true,
+        "caught": true,
+        "raw_output": "{\n  \"severity\": \"critical\",\n  \"category\": \"sensitive-data-logging\",\n  \"line\": 2,\n  \"issue\": \"Plaintext password is being logged at info level, exposing credentials in log files.\",\n  \"suggested_fix\": \"Remove the password from the log statement or mask it before logging.\"\n}"
+      },
+      {
+        "id": "stub-019",
+        "valid": true,
+        "caught": true,
+        "raw_output": "{\n  \"severity\": \"minor\",\n  \"category\": \"resource-leak\",\n  \"line\": 2,\n  \"issue\": \"Scanner wrapping System.in is instantiated on every call without closing, which can lead to resource leaks and potential issues with underlying stream management.\",\n  \"suggested_fix\": \"Extract the Scanner instance as a class member or use try-with-resources if reading streams that require closing.\"\n}"
+      },
+      {
+        "id": "stub-020",
+        "valid": true,
+        "caught": true,
+        "raw_output": "{\"severity\": \"major\", \"category\": \"concurrency\", \"line\": 4, \"issue\": \"Printing 'all tasks done' immediately after spawning threads does not mean the tasks are finished executing, as Thread.start() returns asynchronously.\", \"suggested_fix\": \"Use an ExecutorService or join the threads to wait for completion before printing the final message.\"}"
+      },
+      {
+        "id": "stub-021",
+        "valid": true,
+        "caught": true,
+        "raw_output": "{\n  \"severity\": \"critical\",\n  \"category\": \"null-pointer-dereference\",\n  \"line\": 3,\n  \"issue\": \"counts.get('missing') returns null when the key is absent, and unboxing null to an int throws a NullPointerException.\",\n  \"suggested_fix\": \"Use counts.getOrDefault('missing', 0) instead of counts.get('missing').\"\n}"
+      },
+      {
+        "id": "stub-022",
+        "valid": true,
+        "caught": true,
+        "raw_output": "{\"severity\": \"critical\", \"category\": \"redos\", \"line\": 2, \"issue\": \"The regular expression contains nested quantifiers '(a+)+', which leads to catastrophic backtracking (ReDoS) when given a non-matching input starting with many 'a' characters followed by a non-'b'.\", \"suggested_fix\": \"Rewrite the regular expression to avoid nested quantifiers or use a safer matching mechanism such as possessive quantifiers or atomic groups.\"}"
+      },
+      {
+        "id": "stub-023",
+        "valid": true,
+        "caught": true,
+        "raw_output": "{\n  \"severity\": \"major\",\n  \"category\": \"floating-point-equality\",\n  \"line\": 2,\n  \"issue\": \"Direct comparison of floating-point numbers using == can be imprecise and lead to incorrect results due to rounding errors.\",\n  \"suggested_fix\": \"Use a tolerance threshold (epsilon), such as Math.abs(a - b) < 0.00001, or use Double.compare(a, b) == 0.\"\n}"
+      },
+      {
+        "id": "stub-024",
+        "valid": true,
+        "caught": true,
+        "raw_output": "{\n  \"severity\": \"major\",\n  \"category\": \"unhandled-exception\",\n  \"line\": 2,\n  \"issue\": \"rs.close() throws SQLException, which is unhandled and prevents subsequent stmt.close() and conn.close() from executing if an exception occurs.\",\n  \"suggested_fix\": \"Wrap each close call in its own try-catch block or use a try-with-resources statement to ensure all resources are properly closed.\"\n}"
+      }
+    ]
+  }
+}

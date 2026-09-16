@@ -1,0 +1,19 @@
+{
+  "freeze_date": "2026-09-16T08:11:48.958816+00:00",
+  "n_synthetic": 30,
+  "n_mined": 10,
+  "n_total": 40,
+  "dedup_method": "normalized code hash (eval.dedup.code_hash): case-fold, strip comments, collapse whitespace, then SHA-256",
+  "sources": [
+    "spring-projects/spring-batch",
+    "spring-projects/spring-boot",
+    "spring-projects/spring-data-cassandra",
+    "spring-projects/spring-framework",
+    "spring-projects/spring-integration",
+    "spring-projects/spring-kafka",
+    "spring-projects/spring-security",
+    "spring-projects/spring-session"
+  ],
+  "schema_version": "8ec466370d593675fbbc9c22bc6643916381e70ed21ac09126460a638c12cadb",
+  "curator": "Rahul"
+}

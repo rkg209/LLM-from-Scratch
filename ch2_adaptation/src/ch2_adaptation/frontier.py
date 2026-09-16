@@ -37,9 +37,15 @@ def _to_gemini_response_schema(model: type[BaseModel]) -> dict[str, Any]:
     `model_json_schema()` always emits it (as `false`) for a model with
     `extra="forbid"`, which `ReviewOutput` needs for its own local validation. Strip the
     unsupported key here rather than relaxing that validation.
+
+    Gemini also generates JSON keys in schema order. A model may pin that order with a
+    `generation_order` class attribute, emitted as Gemini's `propertyOrdering`.
     """
     schema = model.model_json_schema()
     schema.pop("additionalProperties", None)
+    order = getattr(model, "generation_order", None)
+    if order:
+        schema["propertyOrdering"] = list(order)
     return schema
 
 
@@ -110,6 +116,7 @@ class GeminiClient:
         # a bogus $0.00 if usage_metadata ever comes back None instead of raising.
         estimate_cost_usd(0, 0)
 
+        import httpx
         from google import genai
         from google.genai import errors as genai_errors
         from google.genai import types
@@ -151,6 +158,12 @@ class GeminiClient:
                         raise
                     delay = _extract_retry_delay_s(error) or float(2**attempt)
                     time.sleep(delay)
+                except (genai_errors.ServerError, httpx.TransportError):
+                    # Transient: a 5xx, or the connection dropping mid-request (hit live on
+                    # C3's run: `RemoteProtocolError: Server disconnected` at 210/300).
+                    if attempt == _MAX_RATE_LIMIT_RETRIES - 1:
+                        raise
+                    time.sleep(float(2**attempt))
             last_request_at = time.monotonic()
             assert response is not None  # the loop above always returns or raises
 

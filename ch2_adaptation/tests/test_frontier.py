@@ -128,3 +128,49 @@ def test_make_client_passes_a_response_model_through_to_gemini() -> None:
 
 def test_gemini_client_response_model_defaults_to_review_output() -> None:
     assert make_client("gemini", "some-model", 0.7, 64).response_model is None
+
+
+def test_response_schema_puts_code_first_for_injection_output() -> None:
+    """Live: with `code` generated last, 157/300 injections returned the method unchanged."""
+    from ch2_adaptation.data_gen import InjectionOutput
+
+    ordering = _to_gemini_response_schema(InjectionOutput)["propertyOrdering"]
+    assert ordering[0] == "code"
+    assert set(ordering) == set(InjectionOutput.model_fields)
+
+
+def test_review_output_schema_has_no_forced_ordering() -> None:
+    assert "propertyOrdering" not in _to_gemini_response_schema(ReviewOutput)
+
+
+def test_gemini_client_retries_a_dropped_connection(monkeypatch: pytest.MonkeyPatch) -> None:
+    httpx = pytest.importorskip("httpx")
+    genai = pytest.importorskip("google.genai")
+    import ch2_adaptation.frontier as frontier
+
+    calls = {"n": 0}
+
+    class FakeResponse:
+        text = "{}"
+        usage_metadata = None
+
+    class FakeModels:
+        def generate_content(self, **_kwargs: object) -> FakeResponse:
+            calls["n"] += 1
+            if calls["n"] == 1:
+                raise httpx.RemoteProtocolError("Server disconnected without sending a response.")
+            return FakeResponse()
+
+    class FakeClient:
+        def __init__(self, **_kwargs: object) -> None:
+            self.models = FakeModels()
+
+    monkeypatch.setattr(genai, "Client", FakeClient)
+    monkeypatch.setattr(frontier.time, "sleep", lambda _s: None)
+    monkeypatch.setenv("GEMINI_API_KEY", "k")
+    monkeypatch.setenv("PRICE_PER_1K_INPUT_USD", "0")
+    monkeypatch.setenv("PRICE_PER_1K_OUTPUT_USD", "0")
+
+    outputs, _ = GeminiClient("m", 0.7, 16).generate(["p"])
+    assert outputs == ["{}"]
+    assert calls["n"] == 2

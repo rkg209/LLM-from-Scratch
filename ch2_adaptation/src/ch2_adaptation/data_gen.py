@@ -17,7 +17,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from difflib import SequenceMatcher
 from pathlib import Path
-from typing import Any
+from typing import Any, ClassVar
 
 from pydantic import Field, ValidationError
 
@@ -70,6 +70,19 @@ class InjectionOutput(ReviewOutput):
     """
 
     code: str = Field(min_length=1)
+
+    # Gemini writes JSON keys in this order (see frontier._to_gemini_response_schema). With
+    # pydantic's inherited order `code` came last: the model described a bug first and then
+    # copied the clean method back unchanged in 157 of 300 responses. `code` first cut that
+    # to 1 of 10 in a live A/B (progress_report.md, 2026-09-16).
+    generation_order: ClassVar[tuple[str, ...]] = (
+        "code",
+        "line",
+        "severity",
+        "category",
+        "issue",
+        "suggested_fix",
+    )
 
 
 def _parse_injection_response(raw: str) -> dict[str, Any] | None:

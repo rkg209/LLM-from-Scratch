@@ -297,22 +297,28 @@ def parse_args() -> argparse.Namespace:
 def _log_label_mined_to_wandb(
     cfg: BaselineConfig, n_raw: int, n_labeled: int, usage: Usage
 ) -> None:
+    """Best-effort, like `baseline._log_to_wandb`: `mined_labeled.jsonl` is already
+    written by the time this runs, so a W&B failure (e.g. `CommError: user is not
+    logged in`) must not turn a successful labeling run into a crashed one."""
     if cfg.wandb_mode == "disabled":
         return
 
     import wandb
 
-    run = wandb.init(project=cfg.wandb_project, mode=cfg.wandb_mode, config=cfg.__dict__)
-    wandb.log(
-        {
-            "label_mined/n_raw": n_raw,
-            "label_mined/n_labeled": n_labeled,
-            "label_mined/cost_usd": usage.cost_usd,
-            "label_mined/input_tokens": usage.input_tokens,
-            "label_mined/output_tokens": usage.output_tokens,
-        }
-    )
-    run.finish()
+    try:
+        run = wandb.init(project=cfg.wandb_project, mode=cfg.wandb_mode, config=cfg.__dict__)
+        wandb.log(
+            {
+                "label_mined/n_raw": n_raw,
+                "label_mined/n_labeled": n_labeled,
+                "label_mined/cost_usd": usage.cost_usd,
+                "label_mined/input_tokens": usage.input_tokens,
+                "label_mined/output_tokens": usage.output_tokens,
+            }
+        )
+        run.finish()
+    except wandb.Error as error:
+        print(f"[C2] W&B logging skipped ({error}) -- the labeled file above is unaffected.")
 
 
 def _run_label_mined(args: argparse.Namespace) -> None:

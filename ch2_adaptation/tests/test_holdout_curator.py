@@ -376,3 +376,23 @@ def test_run_freeze_drops_a_record_colliding_with_an_external_pool(
         json.loads(line) for line in (tmp_path / "out" / "holdout.jsonl").read_text().splitlines()
     ]
     assert len(holdout) == 3  # one synthetic record dropped for colliding with the stub set
+
+
+def test_log_label_mined_to_wandb_survives_a_wandb_init_failure(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Same failure `baseline._log_to_wandb` hit live: `wandb.init` raising `CommError`
+    after the labeled file was written must not crash the run."""
+    wandb = pytest.importorskip("wandb")
+    from pathlib import Path
+
+    from ch2_adaptation.config import load_baseline_config
+    from ch2_adaptation.holdout_curator import _log_label_mined_to_wandb
+
+    def _raise_comm_error(**_kwargs: object) -> None:
+        raise wandb.errors.CommError("user is not logged in")
+
+    monkeypatch.setattr(wandb, "init", _raise_comm_error)
+    cfg = load_baseline_config(Path("ch2_adaptation/configs/baseline_full.yaml"))
+
+    _log_label_mined_to_wandb(cfg, 10, 10, Usage(0, 0, 0.0, "free"))  # must not raise

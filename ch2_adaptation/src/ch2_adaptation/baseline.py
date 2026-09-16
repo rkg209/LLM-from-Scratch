@@ -105,21 +105,32 @@ def parse_args() -> argparse.Namespace:
 
 
 def _log_to_wandb(cfg: BaselineConfig, base: EvalResult, frontier: EvalResult) -> None:
+    """Best-effort W&B logging: never fail a run whose real measurement already
+    succeeded and was written to disk just because the *optional* observability step
+    couldn't reach W&B (no login, offline machine, revoked key, ...). Reproduced live:
+    `wandb.init(mode="online", ...)` raises `CommError: user is not logged in` when the
+    environment has no `WANDB_API_KEY` and the interactive prompt picked "don't
+    visualize" -- that crashed the whole script *after* `baselines.json` was already
+    written, making a successful run look like a failure.
+    """
     if cfg.wandb_mode == "disabled":
         return
 
     import wandb
 
-    run = wandb.init(project=cfg.wandb_project, mode=cfg.wandb_mode, config=cfg.__dict__)
-    wandb.log(
-        {
-            "base/schema_validity_rate": base.schema_validity_rate,
-            "base/bug_catch_rate": base.bug_catch_rate,
-            "frontier/schema_validity_rate": frontier.schema_validity_rate,
-            "frontier/bug_catch_rate": frontier.bug_catch_rate,
-        }
-    )
-    run.finish()
+    try:
+        run = wandb.init(project=cfg.wandb_project, mode=cfg.wandb_mode, config=cfg.__dict__)
+        wandb.log(
+            {
+                "base/schema_validity_rate": base.schema_validity_rate,
+                "base/bug_catch_rate": base.bug_catch_rate,
+                "frontier/schema_validity_rate": frontier.schema_validity_rate,
+                "frontier/bug_catch_rate": frontier.bug_catch_rate,
+            }
+        )
+        run.finish()
+    except wandb.Error as error:
+        print(f"[C1] W&B logging skipped ({error}) -- the measurement above is unaffected.")
 
 
 def _score_base(cfg: BaselineConfig, prompts: list[str]) -> EvalResult:

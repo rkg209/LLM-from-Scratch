@@ -143,3 +143,37 @@ def test_write_json_atomic_leaves_no_tmp_and_round_trips(tmp_path: Path) -> None
 
     assert not path.with_suffix(".json.tmp").exists()
     assert json.loads(path.read_text()) == {"a": 1}
+
+
+def test_log_to_wandb_survives_a_wandb_init_failure(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Reproduced live: `wandb.init(mode="online", ...)` raised `CommError: user is not
+    logged in` on a real run *after* `baselines.json` had already been written -- that
+    crashed the whole script and made a successful measurement look like a failed run.
+    W&B logging must be best-effort, never fatal to an already-saved result."""
+    wandb = pytest.importorskip("wandb")
+    from ch2_adaptation.baseline import _log_to_wandb
+
+    def _raise_comm_error(**_kwargs: object) -> None:
+        raise wandb.errors.CommError("user is not logged in")
+
+    monkeypatch.setattr(wandb, "init", _raise_comm_error)
+    cfg = load_baseline_config(CONFIGS / "baseline_full.yaml")
+    result = EvalResult(1.0, 1.0, 1, 1, 1, [])
+
+    _log_to_wandb(cfg, result, result)  # must not raise
+
+
+def test_log_to_wandb_skips_entirely_when_disabled(monkeypatch: pytest.MonkeyPatch) -> None:
+    wandb = pytest.importorskip("wandb")
+    from ch2_adaptation.baseline import _log_to_wandb
+
+    def _fail_if_called(**_kwargs: object) -> None:
+        raise AssertionError("wandb.init should not be called when wandb_mode is disabled")
+
+    monkeypatch.setattr(wandb, "init", _fail_if_called)
+    cfg = replace(load_baseline_config(CONFIGS / "baseline_smoke.yaml"), wandb_mode="disabled")
+    result = EvalResult(1.0, 1.0, 1, 1, 1, [])
+
+    _log_to_wandb(cfg, result, result)  # returns before ever importing/calling wandb.init

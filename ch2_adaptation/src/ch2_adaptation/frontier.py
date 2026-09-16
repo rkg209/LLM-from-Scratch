@@ -65,6 +65,23 @@ def _extract_retry_delay_s(error: Any) -> float | None:
     return None
 
 
+def _is_daily_quota_error(error: Any) -> bool:
+    """True if a 429 is the per-*day* quota, which no amount of retrying will clear today.
+
+    Hit live on C3's run 2: `GenerateRequestsPerDayPerProjectPerModel-FreeTier`, limit 500.
+    Its RetryInfo still suggests ~43s, so without this check the client slept through every
+    retry for minutes before failing anyway.
+    """
+    details = getattr(error, "details", None)
+    if not isinstance(details, dict):
+        return False
+    for item in details.get("error", {}).get("details", []):
+        for violation in item.get("violations", []) or []:
+            if "PerDay" in str(violation.get("quotaId", "")):
+                return True
+    return False
+
+
 class FrontierClient(Protocol):
     """A frontier API that turns prompts into raw review responses and reports usage."""
 
@@ -155,6 +172,12 @@ class GeminiClient:
                 except genai_errors.ClientError as error:
                     is_last_attempt = attempt == _MAX_RATE_LIMIT_RETRIES - 1
                     if error.code != 429 or is_last_attempt:
+                        raise
+                    if _is_daily_quota_error(error):
+                        print(
+                            "[frontier] daily request quota exhausted for "
+                            f"{self.model_tag} -- not retrying; re-run after the daily reset."
+                        )
                         raise
                     delay = _extract_retry_delay_s(error) or float(2**attempt)
                     time.sleep(delay)

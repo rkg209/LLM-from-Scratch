@@ -9,6 +9,7 @@ from ch2_adaptation.frontier import (
     GeminiClient,
     StubFrontierClient,
     _extract_retry_delay_s,
+    _is_daily_quota_error,
     _to_gemini_response_schema,
     estimate_cost_usd,
     make_client,
@@ -174,3 +175,30 @@ def test_gemini_client_retries_a_dropped_connection(monkeypatch: pytest.MonkeyPa
     outputs, _ = GeminiClient("m", 0.7, 16).generate(["p"])
     assert outputs == ["{}"]
     assert calls["n"] == 2
+
+
+def _quota_error_with(quota_id: str) -> object:
+    return _FakeQuotaError(
+        {
+            "error": {
+                "code": 429,
+                "details": [
+                    {
+                        "@type": "type.googleapis.com/google.rpc.QuotaFailure",
+                        "violations": [{"quotaId": quota_id, "quotaValue": "500"}],
+                    },
+                    {"@type": "type.googleapis.com/google.rpc.RetryInfo", "retryDelay": "43s"},
+                ],
+            }
+        }
+    )
+
+
+def test_is_daily_quota_error_detects_the_real_per_day_quota_id() -> None:
+    error = _quota_error_with("GenerateRequestsPerDayPerProjectPerModel-FreeTier")
+    assert _is_daily_quota_error(error) is True
+
+
+def test_is_daily_quota_error_leaves_per_minute_quotas_retryable() -> None:
+    error = _quota_error_with("GenerateRequestsPerMinutePerProjectPerModel-FreeTier")
+    assert _is_daily_quota_error(error) is False

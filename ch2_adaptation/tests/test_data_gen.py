@@ -325,3 +325,18 @@ def test_build_provenance_records_line_mismatch_drops() -> None:
         n_dropped_line_mismatch=2,
     )
     assert provenance.to_json()["n_dropped_line_mismatch"] == 2
+
+
+def test_changed_lines_ignores_blank_lines_added_or_removed() -> None:
+    """Live: 2 responses returned the clean method plus a trailing blank line, and a label
+    within ±2 of that blank line passed the check as if a bug had been injected."""
+    assert changed_lines(CLEAN, CLEAN + "\n") == set()
+    assert changed_lines(CLEAN, CLEAN.replace("\n    log();", "\n\n    log();")) == set()
+    unchanged_plus_blank = json.loads(injection(code=CLEAN + "\n", line=7))
+    assert filter_line_mismatches([(CLEAN, unchanged_plus_blank)]) == ([], 1)
+
+
+def test_filter_line_mismatches_drops_a_comment_only_change() -> None:
+    """Live: a response appended only `// Bug: ...` to the untouched clean method."""
+    commented = json.loads(injection(code=CLEAN + "\n// Bug: missing validation", line=7))
+    assert filter_line_mismatches([(CLEAN, commented)]) == ([], 1)

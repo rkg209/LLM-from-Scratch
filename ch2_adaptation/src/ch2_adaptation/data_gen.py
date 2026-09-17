@@ -145,15 +145,17 @@ def changed_lines(clean: str, buggy: str) -> set[int]:
     """1-indexed lines of `buggy` that differ from `clean`, ignoring indentation.
 
     A pure deletion has no line of its own in `buggy`, so it marks the lines on either side
-    of the gap.
+    of the gap. Adding or removing only blank lines is not a change.
     """
     before = [line.strip() for line in clean.split("\n")]
     after = [line.strip() for line in buggy.split("\n")]
     lines: set[int] = set()
     matcher = SequenceMatcher(a=before, b=after, autojunk=False)
-    for tag, _i1, _i2, j1, j2 in matcher.get_opcodes():
+    for tag, i1, i2, j1, j2 in matcher.get_opcodes():
         if tag == "equal":
             continue
+        if not any(before[i1:i2]) and not any(after[j1:j2]):
+            continue  # only blank lines added/removed: live, 2 no-ops passed as "changed"
         if j2 > j1:
             lines.update(range(j1 + 1, j2 + 1))
         else:
@@ -170,11 +172,15 @@ def filter_line_mismatches(
     record whose label points somewhere the bug is not teaches exactly the wrong thing. The
     frontier model mislabeled 3 of 10 real bugs this way during C2 curation. Dropped, never
     corrected (AC-1). A response that changed nothing is dropped too: no bug was injected.
+    "Nothing" is judged by `eval.dedup.code_hash`, so a change that is only comments,
+    whitespace or case also counts. Live, one response appended just `// Bug: ...` to an
+    otherwise untouched method and passed the line check.
     """
     kept = [
         record
         for clean, record in pairs
-        if any(abs(record["line"] - n) <= tolerance for n in changed_lines(clean, record["code"]))
+        if code_hash(record["code"]) != code_hash(clean)
+        and any(abs(record["line"] - n) <= tolerance for n in changed_lines(clean, record["code"]))
     ]
     return kept, len(pairs) - len(kept)
 

@@ -73,6 +73,7 @@ class BenchmarkConfig:
     device: str  # "cpu" | "cuda"
     eval_corpus_path: str
     val_fraction: float  # must match the training config's, or the score is in-sample
+    kv_cache_steps: list[int]  # decode lengths at which to measure the cache's speedup
     results_path: str
     plots_dir: str
 
@@ -84,6 +85,13 @@ class BenchmarkConfig:
         if self.warmup_steps >= self.n_steps:
             raise ValueError(
                 f"warmup_steps ({self.warmup_steps}) must be < n_steps ({self.n_steps})"
+            )
+        if not self.kv_cache_steps:
+            raise ValueError("kv_cache_steps must name at least one decode length")
+        if any(steps <= self.warmup_steps for steps in self.kv_cache_steps):
+            raise ValueError(
+                f"every kv_cache_steps entry must exceed warmup_steps "
+                f"({self.warmup_steps}), got {self.kv_cache_steps}"
             )
 
 

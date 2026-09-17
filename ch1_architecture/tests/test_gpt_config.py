@@ -91,6 +91,7 @@ def test_benchmark_config_rejects_warmup_at_or_above_n_steps() -> None:
             device="cpu",
             eval_corpus_path="ch1_architecture/tests/fixtures/corpus_smoke.txt",
             val_fraction=0.1,
+            kv_cache_steps=[3],
             results_path="eval/results/ch1_benchmark.json",
             plots_dir="eval/results/plots",
         )

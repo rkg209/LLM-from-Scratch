@@ -10,9 +10,11 @@ from pathlib import Path
 import pytest
 import torch
 from ch1_architecture.benchmark import (
+    _write_kv_cache_plot,
     _write_plots,
     compute_perplexity,
     load_checkpoint_model_and_tokenizer,
+    measure_kv_cache_curve,
     measure_tokens_per_sec,
     measure_tokens_per_sec_cached,
 )
@@ -188,6 +190,7 @@ def test_benchmark_main_records_which_slice_it_scored(tmp_path: Path, monkeypatc
                 "device: cpu",
                 "eval_corpus_path: ch1_architecture/tests/fixtures/corpus_smoke.txt",
                 "val_fraction: 0.1",
+                "kv_cache_steps: [3, 5]",
                 f"results_path: {results_path}",
                 f"plots_dir: {tmp_path / 'plots'}",
             ]
@@ -226,6 +229,49 @@ def test_benchmark_refuses_a_config_that_holds_nothing_out(tmp_path: Path) -> No
             device="cpu",
             eval_corpus_path="ch1_architecture/tests/fixtures/corpus_smoke.txt",
             val_fraction=1.5,
+            kv_cache_steps=[3],
+            results_path=str(tmp_path / "r.json"),
+            plots_dir=str(tmp_path / "plots"),
+        )
+
+
+def test_kv_cache_curve_covers_every_requested_length(tmp_path: Path) -> None:
+    _, config = _tiny_checkpoint(tmp_path)
+    model = GPTModel(config)
+    prompt = torch.randint(0, config.vocab_size, (1, 2))
+
+    curve = measure_kv_cache_curve(model, prompt, [3, 5], warmup_steps=1)
+
+    assert sorted(curve) == ["3", "5"]
+    for row in curve.values():
+        assert row["cached_tokens_per_sec"] > 0
+        assert row["uncached_tokens_per_sec"] > 0
+        assert row["speedup"] == row["cached_tokens_per_sec"] / row["uncached_tokens_per_sec"]
+
+
+def test_kv_cache_curve_plot_is_written(tmp_path: Path) -> None:
+    curve = {
+        "32": {"cached_tokens_per_sec": 10.0, "uncached_tokens_per_sec": 10.0, "speedup": 1.0},
+        "250": {"cached_tokens_per_sec": 20.0, "uncached_tokens_per_sec": 10.0, "speedup": 2.0},
+    }
+    _write_kv_cache_plot(curve, str(tmp_path / "plots"))
+    assert (tmp_path / "plots" / "kv_cache_curve.png").exists()
+
+
+def test_a_decode_length_at_or_below_warmup_is_rejected(tmp_path: Path) -> None:
+    """Otherwise the measurement silently averages zero timed steps."""
+    with pytest.raises(ValueError, match="kv_cache_steps"):
+        BenchmarkConfig(
+            checkpoint_path=str(tmp_path / "model.pt"),
+            modes=["fp32"],
+            prompt="a",
+            n_steps=10,
+            warmup_steps=5,
+            seed=42,
+            device="cpu",
+            eval_corpus_path="ch1_architecture/tests/fixtures/corpus_smoke.txt",
+            val_fraction=0.1,
+            kv_cache_steps=[5],
             results_path=str(tmp_path / "r.json"),
             plots_dir=str(tmp_path / "plots"),
         )

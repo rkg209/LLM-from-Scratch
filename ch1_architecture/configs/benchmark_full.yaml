@@ -10,5 +10,12 @@ eval_corpus_path: ch1_architecture/data/corpus.txt
 # Must match the training config's val_fraction. Same number, same tail, so perplexity is
 # scored on exactly the text the training run never saw.
 val_fraction: 0.1
+# A KV-cache removes the quadratic re-encoding of the prefix, so its value depends on how
+# long that prefix is. One ratio reads as a property of the cache when it is a property of
+# the cache at one length on one device: on an A100 this model spends ~4.3 ms per step on
+# kernel-launch overhead against ~0.08 ms of attention compute, so at 110 steps the cache
+# measured 1.01x — it was saving work that is already free. These lengths show the trend
+# instead. 250 is the ceiling: seq_len is 256 and the prompt takes a few tokens.
+kv_cache_steps: [32, 64, 128, 250]
 results_path: eval/results/ch1_benchmark.json
 plots_dir: eval/results/plots

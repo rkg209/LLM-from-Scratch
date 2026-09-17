@@ -145,6 +145,33 @@ def compute_perplexity(model: nn.Module, token_ids: list[int], seq_len: int) -> 
     return math.exp(total_loss / n_windows)
 
 
+def measure_kv_cache_curve(
+    model: GPTModel,
+    prompt_ids: torch.Tensor,
+    decode_lengths: list[int],
+    warmup_steps: int,
+) -> dict[str, dict[str, float]]:
+    """Cached vs uncached throughput at several decode lengths.
+
+    A single length cannot answer what a KV-cache is for. The work it removes is the
+    quadratic re-encoding of the prefix, so its value depends entirely on how long that
+    prefix is and on whether re-encoding it costs anything measurable on the hardware in
+    hand. Reporting one ratio invites the reader to take it as a property of the cache,
+    when it is a property of the cache at one sequence length on one device.
+    """
+    curve: dict[str, dict[str, float]] = {}
+    for length in decode_lengths:
+        cached = measure_tokens_per_sec_cached(model, prompt_ids, length, warmup_steps)
+        uncached = measure_tokens_per_sec(model, prompt_ids, length, warmup_steps)
+        curve[str(length)] = {
+            "cached_tokens_per_sec": cached,
+            "uncached_tokens_per_sec": uncached,
+            "speedup": cached / uncached,
+        }
+        print(f"[ch1-benchmark] kv_cache @ {length} steps: {cached / uncached:.2f}x")
+    return curve
+
+
 def _write_plots(results: dict[str, dict[str, float]], plots_dir: str) -> None:
     plots_path = Path(plots_dir)
     plots_path.mkdir(parents=True, exist_ok=True)
@@ -165,7 +192,26 @@ def _write_plots(results: dict[str, dict[str, float]], plots_dir: str) -> None:
     plt.close(fig)
 
 
-def _update_readme(results: dict[str, dict[str, float]], kv_cache: dict[str, float]) -> None:
+def _write_kv_cache_plot(curve: dict[str, dict[str, float]], plots_dir: str) -> None:
+    plots_path = Path(plots_dir)
+    plots_path.mkdir(parents=True, exist_ok=True)
+    lengths = sorted(int(k) for k in curve)
+
+    fig, ax = plt.subplots()
+    ax.plot(lengths, [curve[str(n)]["speedup"] for n in lengths], marker="o")
+    ax.axhline(1.0, linestyle="--", linewidth=1)
+    ax.set_xlabel("decode length (steps)")
+    ax.set_ylabel("cached / uncached throughput")
+    ax.set_title("Chapter 1 — KV-cache speedup vs sequence length")
+    fig.savefig(plots_path / "kv_cache_curve.png")
+    plt.close(fig)
+
+
+def _update_readme(
+    results: dict[str, dict[str, float]],
+    kv_cache: dict[str, float],
+    kv_curve: dict[str, dict[str, float]],
+) -> None:
     lines = ["| Mode | tokens/sec | perplexity |", "|---|---|---|"]
     for mode, row in results.items():
         lines.append(f"| {mode} | {row['tokens_per_sec']:.1f} | {row['perplexity']:.2f} |")
@@ -176,6 +222,15 @@ def _update_readme(results: dict[str, dict[str, float]], kv_cache: dict[str, flo
         f"({kv_cache['speedup']:.2f}x)."
     )
     lines.append("")
+    lines.append("| Decode length | cached tok/s | uncached tok/s | speedup |")
+    lines.append("|---|---|---|---|")
+    for length in sorted(int(k) for k in kv_curve):
+        row = kv_curve[str(length)]
+        lines.append(
+            f"| {length} | {row['cached_tokens_per_sec']:.1f} | "
+            f"{row['uncached_tokens_per_sec']:.1f} | {row['speedup']:.2f}x |"
+        )
+    lines.append("")
     lines.append(
         "Perplexity is measured on a held-out tail of the corpus that the training run "
         "never saw, so it is a generalization number rather than a memorization one."
@@ -183,6 +238,7 @@ def _update_readme(results: dict[str, dict[str, float]], kv_cache: dict[str, flo
     lines.append("")
     lines.append("![speedup](eval/results/plots/speedup_curve.png)")
     lines.append("![perplexity](eval/results/plots/perplexity_tradeoff.png)")
+    lines.append("![kv-cache](eval/results/plots/kv_cache_curve.png)")
     update_readme_section(README_PATH, README_MARKER, "\n".join(lines))
 
 
@@ -242,10 +298,14 @@ def main() -> None:
         "speedup": cached_tps / uncached_tps,
     }
     print(f"[ch1-benchmark] kv_cache speedup: {kv_cache_block['speedup']:.2f}x")
+    kv_curve = measure_kv_cache_curve(
+        fp32_model, prompt_ids, config.kv_cache_steps, config.warmup_steps
+    )
 
     payload = {
         **results,
         "kv_cache": kv_cache_block,
+        "kv_cache_curve": kv_curve,
         "seed": config.seed,
         "checkpoint_path": config.checkpoint_path,
         "device": config.device,
@@ -256,13 +316,14 @@ def main() -> None:
     }
     write_json_atomic(payload, config.results_path)
     _write_plots(results, config.plots_dir)
+    _write_kv_cache_plot(kv_curve, config.plots_dir)
     if _is_smoke_run(args.config, config.checkpoint_path):
         print(
             "[ch1-benchmark] smoke run detected — skipping README update; these numbers "
             "are a toy model on a tiny corpus and are not meaningful (CLAUDE.md honest-metrics)."
         )
     else:
-        _update_readme(results, kv_cache_block)
+        _update_readme(results, kv_cache_block, kv_curve)
     print(f"[ch1-benchmark] wrote {config.results_path} and plots to {config.plots_dir}")
 
 

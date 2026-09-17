@@ -69,11 +69,38 @@ ship a quantization level that regresses it.
 
 ## This project's measured perplexity delta per precision level
 
-<!-- filled once A5's full-config GPU run lands; see eval/results/ch1_benchmark.json and
-     README.md's CH1_BENCHMARK section for fp32/fp16/int8/int4 tokens/sec and perplexity. -->
-*(pending — A5 full GPU run: perplexity for fp32/fp16/int8/int4 from
-`eval/results/ch1_benchmark.json`, and the corresponding tokens/sec each mode measured on
-CPU, including the fp16-on-CPU result described above.)*
+Measured 2026-09-18, PARAM Rudra job 402166, one A100 80GB PCIe, the 21.0M-parameter
+checkpoint from the 3000-step run. Perplexity is over 16,287 held-out tokens — the 10%
+tail of the corpus, split off before the tokenizer was fitted, so the training run never
+saw it. Source: `eval/results/ch1_benchmark.json`.
+
+| Mode | tokens/sec | vs fp32 | perplexity | vs fp32 |
+|---|---|---|---|---|
+| fp32 | 237.4 | — | 61.45 | — |
+| fp16 | 200.2 | 0.84x | 61.45 | +0.00% |
+| int8 | 219.8 | 0.93x | 61.70 | +0.42% |
+| int4 | 107.6 | 0.45x | 84.11 | +36.9% |
+
+**Every mode is slower than fp32.** The prediction above — that fp16 could be slower, not
+faster — held, and it held for int8 and int4 as well. int4 is the clearest case: 2.2x
+slower for a 37% perplexity increase, which is a loss on both axes simultaneously.
+
+The cause is this implementation, not the technique. `QuantizedLinear` stores absmax-
+quantized weights and dequantizes them inside `forward`, in ordinary PyTorch ops, because
+the chapter's premise is that nothing here comes from `bitsandbytes` or a fused kernel.
+So every matmul pays a dequantization pass that fp32 never pays, and int4 additionally
+pays bit-unpacking. What quantization buys in this implementation is memory; what it
+costs is latency. On an A100 — where memory was never the binding constraint — that is a
+straight loss.
+
+Two things worth taking from that rather than filing it as a failure. First, int8's
+quality cost is genuinely negligible (+0.42% perplexity), so the *quality* half of the
+technique is confirmed even where the speed half is not: on hardware with int8 tensor
+cores and a fused kernel, that trade is the good one. Second, this is the concrete reason
+Chapter 3 serves GGUF through `llama.cpp` instead of shipping this code — the same idea,
+implemented where the kernels exist, is what makes CPU-only serving viable at all. Having
+measured the naive version is what makes that a reasoned choice rather than a borrowed
+one.
 
 ## What I got wrong
 

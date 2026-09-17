@@ -1,0 +1,9 @@
+# C5 AC-5: re-render README.md's head-to-head table from the committed result artifacts,
+# without re-running any model. Reads nothing but these two JSON files, so it needs no GPU
+# and no EVAL_CONTEXT=1 -- it never touches the holdout.
+#   uv run python -m ch2_adaptation.publish_table --config ch2_adaptation/configs/publish_table.yaml
+# baselines_path is baselines_holdout.json, NOT baselines.json: the latter is C1's
+# measurement on the 24-record stub set and is not comparable to the fine-tuned row.
+finetuned_path: eval/results/finetuned.json
+baselines_path: eval/results/baselines_holdout.json
+readme_path: README.md

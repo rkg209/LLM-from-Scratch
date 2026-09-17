@@ -11,10 +11,11 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
-from ch2_adaptation.baseline import Generator, score_system
+from ch2_adaptation.baseline import Generator, _sha256_file, score_system
 from eval.config import seed_everything
 from eval.harness import DEFAULT_SCHEMA_PATH, EvalResult
 
@@ -117,6 +118,32 @@ def update_readme_results_section(table_md: str, readme_path: Path | str) -> Non
     readme_path.write_text(new_content)
 
 
+def build_finetuned_doc(result: EvalResult, config: EvaluateConfig) -> dict[str, Any]:
+    """Assemble the `finetuned.json` payload, self-describing about its inputs.
+
+    Mirrors `baseline.py::build_baselines_doc`: a published result that does not record
+    *which* holdout, *which* schema and *which* adapter produced it can only be checked
+    against a job log someone has to still possess. The first run of this file (Rudra job
+    401990) recorded none of the three -- the hashes existed only in the SLURM log -- which
+    is the gap this closes (C5, action-plan item 8's validation list).
+
+    `dtype` follows `baseline.py`'s convention so the two files can be read side by side.
+    """
+    adapter_weights = Path(config.adapter_path) / "adapter_model.safetensors"
+    return {
+        "timestamp": datetime.now(UTC).isoformat(),
+        "model_tag": config.model_tag,
+        "adapter_path": config.adapter_path,
+        "adapter_sha256": _sha256_file(adapter_weights) if adapter_weights.exists() else None,
+        "holdout": str(config.holdout_path),
+        "holdout_sha256": _sha256_file(config.holdout_path),
+        "schema_sha256": _sha256_file(DEFAULT_SCHEMA_PATH),
+        "mode": "zero-shot",
+        "dtype": "int4" if config.use_4bit else "float32",
+        **result.to_json(),
+    }
+
+
 def make_adapter_generator(config: EvaluateConfig) -> Generator:
     """Load the base model, attach the trained adapter, return a `prompts -> raw
     responses` callable -- zero-shot, since the fine-tuned model needs no few-shot
@@ -166,13 +193,7 @@ def main() -> None:
     generate = make_adapter_generator(config)
     result = score_adapter_on_holdout(prompts, generate, config.holdout_path)
 
-    doc = {
-        "model_tag": config.model_tag,
-        "adapter_path": config.adapter_path,
-        "mode": "zero-shot",
-        **result.to_json(),
-    }
-    write_json_atomic(doc, config.results_path)
+    write_json_atomic(build_finetuned_doc(result, config), config.results_path)
 
     print(
         f"[C5] validity={result.schema_validity_rate:.2f} "

@@ -164,3 +164,85 @@ def test_update_readme_results_section_raises_if_markers_are_reversed(tmp_path: 
 
     with pytest.raises(ValueError, match="malformed"):
         update_readme_results_section("table", readme)
+
+
+def test_build_finetuned_doc_records_the_inputs_that_produced_the_number(
+    holdout_path: Path, tmp_path: Path
+) -> None:
+    """A published result must be re-checkable on its own (C5 AC-3/AC-8, X2).
+
+    The first real run (Rudra job 401990) wrote none of these fields: the holdout,
+    schema and adapter hashes existed only in the SLURM log, so the artifact could not be
+    verified without a file nobody had committed. Anything published after this records
+    them next to the numbers they produced.
+    """
+    from ch2_adaptation.config import EvaluateConfig
+    from ch2_adaptation.evaluate import build_finetuned_doc
+
+    adapter_dir = tmp_path / "adapter"
+    adapter_dir.mkdir()
+    (adapter_dir / "adapter_model.safetensors").write_bytes(b"not really safetensors")
+    config = EvaluateConfig(
+        model_tag="Qwen/Qwen2.5-Coder-1.5B-Instruct",
+        adapter_path=str(adapter_dir),
+        holdout_path=str(holdout_path),
+        results_path=str(tmp_path / "finetuned.json"),
+        max_new_tokens=8,
+        use_4bit=True,
+        seed=42,
+        wandb_mode="disabled",
+        wandb_project="test",
+    )
+    result = EvalResult(
+        schema_validity_rate=1.0,
+        bug_catch_rate=0.5,
+        n_samples=2,
+        n_valid=2,
+        n_caught=1,
+        per_sample=[],
+    )
+
+    doc = build_finetuned_doc(result, config)
+
+    assert doc["holdout_sha256"] == hashlib.sha256(holdout_path.read_bytes()).hexdigest()
+    assert doc["schema_sha256"] == hashlib.sha256(DEFAULT_SCHEMA_PATH.read_bytes()).hexdigest()
+    assert doc["adapter_sha256"] == hashlib.sha256(b"not really safetensors").hexdigest()
+    assert doc["dtype"] == "int4"
+    assert doc["schema_validity_rate"] == 1.0 and doc["n_samples"] == 2
+
+
+def test_build_finetuned_doc_tolerates_a_merged_adapter_dir_with_no_safetensors(
+    holdout_path: Path, tmp_path: Path
+) -> None:
+    """adapter_sha256 is provenance, not a precondition -- a missing weights file must
+    not crash a run whose measurement is otherwise fine.
+
+    Uses the smoke model tag because `EvaluateConfig.is_smoke` gates on `use_4bit`: fp32
+    means smoke, and smoke locks the tag (the documented proxy in C5's amendments)."""
+    from ch2_adaptation.config import SMOKE_MODEL_TAG, EvaluateConfig
+    from ch2_adaptation.evaluate import build_finetuned_doc
+
+    config = EvaluateConfig(
+        model_tag=SMOKE_MODEL_TAG,
+        adapter_path=str(tmp_path / "missing"),
+        holdout_path=str(holdout_path),
+        results_path=str(tmp_path / "finetuned.json"),
+        max_new_tokens=8,
+        use_4bit=False,
+        seed=42,
+        wandb_mode="disabled",
+        wandb_project="test",
+    )
+    result = EvalResult(
+        schema_validity_rate=0.0,
+        bug_catch_rate=0.0,
+        n_samples=1,
+        n_valid=0,
+        n_caught=0,
+        per_sample=[],
+    )
+
+    doc = build_finetuned_doc(result, config)
+
+    assert doc["adapter_sha256"] is None
+    assert doc["dtype"] == "float32"

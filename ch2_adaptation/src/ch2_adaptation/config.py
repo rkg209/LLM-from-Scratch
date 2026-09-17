@@ -219,3 +219,28 @@ class EvaluateConfig:
 
 def load_evaluate_config(path: Path | str) -> EvaluateConfig:
     return _load_config(path, EvaluateConfig)
+
+
+@dataclass(frozen=True)
+class PublishTableConfig:
+    """Inputs for re-rendering the published table from finished artifacts (C5 AC-5).
+
+    Paths only: this entrypoint scores nothing, so there is no seed, no model tag and
+    nothing to keep in step with a run.
+    """
+
+    finetuned_path: str
+    baselines_path: str
+    readme_path: str
+
+    def __post_init__(self) -> None:
+        for field in ("finetuned_path", "baselines_path", "readme_path"):
+            if not getattr(self, field):
+                raise ValueError(
+                    f"{field} must be set — this entrypoint only moves numbers "
+                    "between existing files, so every path is required."
+                )
+
+
+def load_publish_table_config(path: Path | str) -> PublishTableConfig:
+    return _load_config(path, PublishTableConfig)

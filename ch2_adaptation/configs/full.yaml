@@ -10,7 +10,10 @@ target_modules:
   - v_proj
   - k_proj
   - o_proj
-max_steps: 1000
+# 125, not the original 1000: on the 203-record C3 set, 1000 steps (~20 epochs) memorized the
+# training data. Sweep on PARAM Rudra, 2026-09-17, val.jsonl loss only (never the holdout):
+# 20→0.917, 125→0.679, 250→0.707, 500→1.160, 1000→1.586. See spec 08-C4 deviations.
+max_steps: 125
 batch_size: 4
 learning_rate: 0.0002
 use_4bit: true # NF4 + double-quant + bf16 compute

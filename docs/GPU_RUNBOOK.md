@@ -74,7 +74,7 @@ spend — capped and logged, see `ch2_adaptation/baseline.py::Usage`.
 ```bash
 uv run python -m ch2_adaptation.finetune --config ch2_adaptation/configs/full.yaml
 ```
-`lora_r=16`, 4-bit NF4, 1000 steps — ~30–60 min on a free-tier T4/A100. → adapter at
+`lora_r=16`, 4-bit NF4, 125 steps (1000 overfit — spec 08-C4) — ~1 min of training on an A100. → adapter at
 `outputs/adapter/`. Record the W&B run ID in `specs/STATUS.md`.
 
 ## Step 5 — C5: score and publish the head-to-head table

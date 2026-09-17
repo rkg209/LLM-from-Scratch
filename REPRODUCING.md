@@ -94,7 +94,8 @@ EVAL_CONTEXT=1 uv run python -m ch2_adaptation.evaluate \
 ```
 
 `configs/full.yaml` fine-tunes `Qwen/Qwen2.5-Coder-1.5B-Instruct` with 4-bit NF4 QLoRA
-(`lora_r=16`) for 1000 steps — expect roughly 30–60 minutes on a free-tier T4/A100 and
+(`lora_r=16`) for 125 steps (1000 overfit the 203-record set — see spec 08-C4) — about 1 minute
+of training on an A100, longer on a free-tier T4, and
 under $1 of total Gemini API spend across data generation and the frontier baseline (both
 capped and logged — see `Usage` in `ch2_adaptation/baseline.py`). `evaluate.py` writes
 the head-to-head table into the `EVAL_TABLE` README marker.

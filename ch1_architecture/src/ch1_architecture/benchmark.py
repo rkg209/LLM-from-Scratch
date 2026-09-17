@@ -122,10 +122,14 @@ def compute_perplexity(model: nn.Module, token_ids: list[int], seq_len: int) -> 
     model.eval()
     total_loss, n_windows = 0.0, 0
     vocab_size = None
+    # The windows must be built on the model's own device. Reading them off the model
+    # rather than taking a device argument keeps the call sites honest: there is no way
+    # to pass a device that disagrees with where the weights actually are.
+    device = next(model.parameters()).device
     with torch.no_grad():
         for i in range(0, len(token_ids) - seq_len, seq_len):
-            inputs = torch.tensor([token_ids[i : i + seq_len]])
-            labels = torch.tensor([token_ids[i + 1 : i + seq_len + 1]])
+            inputs = torch.tensor([token_ids[i : i + seq_len]], device=device)
+            labels = torch.tensor([token_ids[i + 1 : i + seq_len + 1]], device=device)
             logits = model(inputs)
             vocab_size = logits.size(-1)
             loss = F.cross_entropy(logits.view(-1, vocab_size), labels.view(-1))

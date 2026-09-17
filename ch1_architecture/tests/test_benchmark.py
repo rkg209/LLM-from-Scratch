@@ -6,6 +6,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
 import torch
 from ch1_architecture.benchmark import (
     _write_plots,
@@ -112,3 +113,30 @@ def test_write_plots_creates_both_pngs(tmp_path: Path) -> None:
     _write_plots(results, str(tmp_path / "plots"))
     assert (tmp_path / "plots" / "speedup_curve.png").exists()
     assert (tmp_path / "plots" / "perplexity_tradeoff.png").exists()
+
+
+def _accelerator() -> str | None:
+    if torch.cuda.is_available():
+        return "cuda"
+    if torch.backends.mps.is_available():
+        return "mps"
+    return None
+
+
+@pytest.mark.skipif(_accelerator() is None, reason="needs a non-CPU device to be meaningful")
+def test_compute_perplexity_runs_on_a_non_cpu_model(tmp_path: Path) -> None:
+    """The windows must be built where the weights are.
+
+    This is not a hypothetical: `compute_perplexity` built its tensors on the CPU while
+    the full-config run puts the model on `cuda`, so the GPU benchmark would have died
+    on its first window. A CPU-only test cannot see that — both tensors land on the CPU
+    either way — so this one runs on whatever accelerator the machine has (MPS on the
+    dev laptop, CUDA on the GPU box).
+    """
+    device = _accelerator()
+    assert device is not None
+    _, config = _tiny_checkpoint(tmp_path)
+    model = GPTModel(config).to(device)
+    ppl = compute_perplexity(model, list(range(200)) * 2, seq_len=config.seq_len)
+    assert ppl > 0
+    assert ppl == ppl

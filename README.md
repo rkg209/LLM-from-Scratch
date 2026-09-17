@@ -126,15 +126,62 @@ actually be run.
 **Chapter 1 — speedup and quantization cost** *(spec A5)*
 
 <!-- CH1_BENCHMARK_START -->
-*(filled by `ch1_architecture.benchmark` against the full-config checkpoint — tokens/sec and perplexity per quantization mode, plus the KV-cache speedup. The smoke config exercises this same code path end to end but its numbers are not meaningful: an undertrained toy model on a 5 KB corpus.)*
+| Mode | tokens/sec | perplexity |
+|---|---|---|
+| fp32 | 237.4 | 61.45 |
+| fp16 | 200.2 | 61.45 |
+| int8 | 219.8 | 61.70 |
+| int4 | 107.6 | 84.11 |
+
+KV-cache: 271.2 tok/s cached vs 270.8 tok/s uncached (1.00x).
+
+| Decode length | cached tok/s | uncached tok/s | speedup |
+|---|---|---|---|
+| 32 | 273.6 | 271.6 | 1.01x |
+| 64 | 274.3 | 271.4 | 1.01x |
+| 128 | 273.7 | 267.9 | 1.02x |
+| 250 | 272.9 | 265.0 | 1.03x |
+
+Perplexity is measured on a held-out tail of the corpus that the training run never saw, so it is a generalization number rather than a memorization one.
+
+![speedup](eval/results/plots/speedup_curve.png)
+![perplexity](eval/results/plots/perplexity_tradeoff.png)
+![kv-cache](eval/results/plots/kv_cache_curve.png)
 <!-- CH1_BENCHMARK_END -->
 
-Once filled, the two plots show two independent tradeoffs, not one curve: the bar chart is
-inference speed by quantization mode (memory-bandwidth bound, not compute bound — see
-[`docs/quantization.md`](docs/quantization.md) for why fp16-on-CPU being *slower* than
-fp32 is an expected, reported result here, not a bug), and the second is the perplexity
-cost that speed buys. The KV-cache line is a separate comparison again — see
-[`docs/kv-cache.md`](docs/kv-cache.md) for why it speeds up decoding but not prefill.
+A 21.0M-parameter GPT written from scratch, trained for 3000 steps on one A100, scoring
+**perplexity 61.45 on a held-out tail of the corpus it never trained on** (16,287 tokens,
+10% of the corpus, split off before the BPE tokenizer was fitted). `max_steps` and the
+learning rate come from a measured sweep on held-out loss, not from a guess — see
+`ch1_architecture/configs/full.yaml`, which records the sweep that set them.
+
+**Every quantization mode is slower than fp32, and that is the finding.** int4 costs
+2.2× throughput for a 37% perplexity increase (61.45 → 84.11); int8 is nearly free on
+quality (61.70) and still slower. The reason is in the implementation, not the idea:
+absmax quantization here is hand-written in pure PyTorch (the chapter's whole point — no
+bitsandbytes), so every forward pass dequantizes inside Python-level ops with no fused
+kernel. That buys memory and pays latency, and on an A100 the trade is a straight loss.
+It is also exactly why Chapter 3 serves GGUF through llama.cpp rather than shipping this
+code: the same idea, implemented where the kernels exist, is what makes CPU serving work.
+
+**The KV-cache reads 1.03×, and the two throughput columns are the interesting part.**
+Cached throughput is flat as the sequence grows (273.6 → 272.9 tok/s); uncached decays
+(271.6 → 265.0) because it re-encodes a longer prefix every step. That is precisely the
+mechanism a KV-cache removes, and the ratio climbs monotonically with decode length. The
+*magnitude* is small because a 21M-parameter model at batch 1 spends ~4.3 ms per step on
+kernel-launch overhead against ~0.08 ms of attention compute — the cache is eliminating
+work that was already free on this hardware. The same code on CPU, where that compute is
+not free, measures 1.28× at 8 decode steps and 1.31× at 12 — though that is the 0.12M
+smoke model on a 5 KB corpus, not this checkpoint, so read it as the mechanism showing up
+where compute dominates rather than as a comparable number. Reporting the 1.03× alone
+would suggest the cache does not work; reporting the two columns shows it does exactly
+what it should, at a scale where it does not yet matter. See
+[`docs/kv-cache.md`](docs/kv-cache.md).
+
+The three plots show three independent tradeoffs, not one curve: inference speed by
+quantization mode, the perplexity cost that speed buys (see
+[`docs/quantization.md`](docs/quantization.md)), and the KV-cache speedup against decode
+length.
 
 **Chapter 3 — serving** *(spec O3, numbers filled in by O5 against the live deployment)*
 

@@ -1,0 +1,56 @@
+{
+  "fp32": {
+    "tokens_per_sec": 237.44708676665454,
+    "perplexity": 61.44576103056575,
+    "n_steps": 110
+  },
+  "fp16": {
+    "tokens_per_sec": 200.16152855427217,
+    "perplexity": 61.445049937503406,
+    "n_steps": 110
+  },
+  "int8": {
+    "tokens_per_sec": 219.8278567407954,
+    "perplexity": 61.70047872697354,
+    "n_steps": 110
+  },
+  "int4": {
+    "tokens_per_sec": 107.6356261067445,
+    "perplexity": 84.1119550886334,
+    "n_steps": 110
+  },
+  "kv_cache": {
+    "cached_tokens_per_sec": 271.22463521998,
+    "uncached_tokens_per_sec": 270.7736104962602,
+    "speedup": 1.0016656893664533
+  },
+  "kv_cache_curve": {
+    "32": {
+      "cached_tokens_per_sec": 273.6106902749038,
+      "uncached_tokens_per_sec": 271.56044398093894,
+      "speedup": 1.0075498709013333
+    },
+    "64": {
+      "cached_tokens_per_sec": 274.2563593099596,
+      "uncached_tokens_per_sec": 271.4222899182033,
+      "speedup": 1.010441549928012
+    },
+    "128": {
+      "cached_tokens_per_sec": 273.7289044248072,
+      "uncached_tokens_per_sec": 267.90709326330466,
+      "speedup": 1.0217307092939891
+    },
+    "250": {
+      "cached_tokens_per_sec": 272.90697943384663,
+      "uncached_tokens_per_sec": 265.03782295431176,
+      "speedup": 1.029690692414461
+    }
+  },
+  "seed": 42,
+  "checkpoint_path": "outputs/ch1/model.pt",
+  "device": "cuda",
+  "eval_corpus_path": "ch1_architecture/data/corpus.txt",
+  "val_fraction": 0.1,
+  "n_eval_tokens": 16287,
+  "perplexity_split": "held-out tail"
+}

@@ -1,5 +1,12 @@
 """The single most valuable test in the chapter: a model that cannot memorize eight
 sequences is broken, and no amount of hyperparameter tuning will fix it.
+
+The step budget went 100 -> 150 when GPT-2 initialization landed. The threshold did not
+move: the point of the test is that the model *can* drive the loss to nothing, and it
+still does. What changed is that weights no longer start enormous, so the first steps go
+into learning rather than into shrinking logits — the same reason the real training run
+got dramatically better. A test that passed only because the model started badly scaled
+was measuring the wrong thing.
 """
 
 from __future__ import annotations
@@ -49,7 +56,7 @@ def test_overfit_tiny_batch() -> None:
     labels = torch.randint(0, config.vocab_size, (8, config.seq_len))
 
     loss = torch.tensor(float("inf"))
-    for _ in range(100):
+    for _ in range(150):
         optimizer.zero_grad()
         logits = model(inputs)
         loss = F.cross_entropy(logits.view(-1, config.vocab_size), labels.view(-1))

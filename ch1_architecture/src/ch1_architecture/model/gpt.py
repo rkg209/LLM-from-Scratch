@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from typing import TYPE_CHECKING
 
 import torch
@@ -29,6 +30,33 @@ class GPTModel(nn.Module):
             ]
         )
         self.ln_f = LayerNorm(config.d_model)
+
+        self.apply(self._init_weights)
+        # The two projections that write back into the residual stream get a smaller
+        # std, scaled by the depth they are summed over (GPT-2 §2.3). Without it the
+        # residual variance grows with n_layers, and a deeper model starts worse than
+        # a shallow one for no reason a reader could see in the code.
+        residual_std = 0.02 / math.sqrt(2 * config.n_layers)
+        for name, param in self.named_parameters():
+            if name.endswith(("w_o.weight", "fc2.weight")):
+                nn.init.normal_(param, mean=0.0, std=residual_std)
+
+    @staticmethod
+    def _init_weights(module: nn.Module) -> None:
+        """GPT-2's initialization: N(0, 0.02) on every weight matrix, zero biases.
+
+        Torch's `nn.Embedding` default is N(0, 1), and this model ties its output head
+        to the token embedding — so the default put the logits at std ~23 and the loss
+        at initialization at ~386, against ln(vocab_size) ~ 8.3 for uniform guessing.
+        The first 200 steps of a run were spent climbing back down to worse-than-random
+        rather than learning anything, which is what the A3 GPU run (job 402127) showed.
+        """
+        if isinstance(module, nn.Linear):
+            nn.init.normal_(module.weight, mean=0.0, std=0.02)
+            if module.bias is not None:
+                nn.init.zeros_(module.bias)
+        elif isinstance(module, nn.Embedding):
+            nn.init.normal_(module.weight, mean=0.0, std=0.02)
 
     def forward(self, input_ids: torch.Tensor, cache: KVCache | None = None) -> torch.Tensor:
         # input_ids: [B, T] -> logits: [B, T, V]

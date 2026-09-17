@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import math
+
 import torch
+import torch.nn.functional as F
 from ch1_architecture.config import GPTConfig
 from ch1_architecture.model.attention import MultiHeadSelfAttention
 from ch1_architecture.model.block import TransformerBlock
@@ -98,3 +101,43 @@ def test_get_num_params_counts_tied_weight_once() -> None:
     model = GPTModel(config)
     manual_count = sum(p.numel() for p in model.parameters())
     assert model.get_num_params() == manual_count
+
+
+def test_loss_at_initialization_is_about_uniform() -> None:
+    """An untrained model must score what random guessing scores: ln(vocab_size).
+
+    This is the single cheapest check on a from-scratch transformer, and its absence cost
+    a GPU run. Torch initializes `nn.Embedding` at N(0, 1); this model ties its output
+    head to that embedding, so the logits came out at std ~23 and the initial loss at
+    ~386 against a uniform baseline of 8.3. The first run's 200 steps went on climbing
+    back down, ending at 9.59 — still worse than guessing — while the samples looked
+    plausible enough (common words, learned from unigram frequency) to hide it.
+    """
+    config = _config()
+    torch.manual_seed(config.seed)
+    model = GPTModel(config)
+
+    stream = torch.randint(0, config.vocab_size, (64, config.seq_len + 1))
+    inputs, labels = stream[:, :-1], stream[:, 1:]
+    with torch.no_grad():
+        logits = model(inputs)
+        loss = F.cross_entropy(logits.reshape(-1, config.vocab_size), labels.reshape(-1)).item()
+
+    uniform = math.log(config.vocab_size)
+    assert abs(loss - uniform) < 0.5, (
+        f"loss at init {loss:.2f} vs uniform {uniform:.2f} — the model starts nowhere "
+        "near random guessing, so training will spend its budget undoing the "
+        "initialization"
+    )
+
+
+def test_residual_projections_are_scaled_by_depth() -> None:
+    """GPT-2 §2.3: the projections writing into the residual stream start smaller."""
+    config = _config()
+    model = GPTModel(config)
+    expected = 0.02 / math.sqrt(2 * config.n_layers)
+
+    for name, param in model.named_parameters():
+        if name.endswith(("w_o.weight", "fc2.weight")):
+            assert param.std().item() < 0.02, name
+            assert abs(param.std().item() - expected) < expected * 0.5, name

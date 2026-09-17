@@ -1,0 +1,252 @@
+{
+  "model_tag": "Qwen/Qwen2.5-Coder-1.5B-Instruct",
+  "adapter_path": "outputs/adapter",
+  "mode": "zero-shot",
+  "schema_validity_rate": 0.975,
+  "bug_catch_rate": 0.8,
+  "n_samples": 40,
+  "n_valid": 39,
+  "n_caught": 32,
+  "per_sample": [
+    {
+      "id": "8e6a5331-9c16-4d79-895c-418855f848cd",
+      "valid": true,
+      "caught": true,
+      "raw_output": "{\"severity\": \"major\", \"category\": \"SQL Injection Risk\", \"line\": 3, \"issue\": \"The SQL query is constructed directly into the string without using parameterized queries, which makes it vulnerable to SQL injection attacks if the 'status' parameter comes from untrusted user input.\", \"suggested_fix\": \"Use JDBC's prepared statements to safely pass the 'status' variable into the query.\"}"
+    },
+    {
+      "id": "75eb77e0-5334-4780-9811-4424e358bfff",
+      "valid": true,
+      "caught": true,
+      "raw_output": "{\"severity\": \"major\", \"category\": \"Incorrect Input Handling\", \"line\": 3, \"issue\": \"The method incorrectly passes an InputStream instead of a File to the DocumentBuilder's parse method, which will throw a ParsingException.\", \"suggested_fix\": \"Change input to new File(input).\"}"
+    },
+    {
+      "id": "b54e73dc-f1fd-41fd-bc24-2aaf46a98095",
+      "valid": true,
+      "caught": true,
+      "raw_output": "{\"severity\": \"critical\", \"category\": \"Insecure Hardcoded Credentials\", \"line\": 3, \"issue\": \"The SMTP_PASSWORD field is hardcoded as 'Summer2023!' instead of being properly managed or retrieved from a secure configuration source.\", \"suggested_fix\": \"Replace 'Summer2023!' with a variable that retrieves the actual password securely.\"}"
+    },
+    {
+      "id": "19c28ade-3fc4-4c57-b863-44b1b15b8838",
+      "valid": true,
+      "caught": true,
+      "raw_output": "{\"severity\": \"major\", \"category\": \"Null Pointer Exception Risk\", \"line\": 3, \"issue\": \"The ByteArrayInputStream is constructed using the raw byte array instead of the InputStream argument passed to the constructor, which can lead to a NullPointerException if the input stream is null.\", \"suggested_fix\": \"Change ByteArrayInputStream(data) back to new ByteArrayInputStream(inputStream).\"}"
+    },
+    {
+      "id": "250a6361-7dc5-4c11-8c3b-7a0217968cf0",
+      "valid": true,
+      "caught": true,
+      "raw_output": "{\"severity\": \"major\", \"category\": \"Incorrect Command Construction\", \"line\": 3, \"issue\": \"The command is constructed incorrectly by concatenating the filename directly into the command string without escaping spaces or quotes around the filename.\", \"suggested_fix\": \"Escape spaces in the filename using backticks (`) or enclose the entire command in double quotes to prevent shell expansion.\"}"
+    },
+    {
+      "id": "bd3ff269-310d-43a9-adbb-afde654dbcc0",
+      "valid": true,
+      "caught": true,
+      "raw_output": "{\"severity\": \"major\", \"category\": \"Race Condition\", \"line\": 3, \"issue\": \"The withdrawal logic is vulnerable to a race condition where another thread could withdraw funds between checking the balance and updating it.\", \"suggested_fix\": \"Use synchronization or atomic operations to ensure that the balance is updated atomically after the balance check.\"}"
+    },
+    {
+      "id": "d053a06a-26f5-4120-82b6-059ffea8490c",
+      "valid": true,
+      "caught": true,
+      "raw_output": "{\"severity\": \"major\", \"category\": \"Null Pointer Exception Risk\", \"line\": 3, \"issue\": \"The call to init on SSLContext is passing null for the key manager factory parameters, which will cause a NullPointerException if no key managers are configured.\", \"suggested_fix\": \"Pass an empty array of KeyManagers instead of null: ctx.init(new KeyManager[0], trustAll, new SecureRandom());\"}"
+    },
+    {
+      "id": "ea3d611b-5700-422f-9727-50476894d466",
+      "valid": true,
+      "caught": true,
+      "raw_output": "{\"severity\": \"major\", \"category\": \"Incorrect File Extension\", \"line\": 3, \"issue\": \"The file extension is hardcoded as .png instead of being dynamically generated based on the input parameter.\", \"suggested_fix\": \"Change \\\".png\\\" to \\\"userId + \\\".png\\\" inside the Paths.get() call.\"}"
+    },
+    {
+      "id": "518fd770-1167-4c73-a72e-e549ebb1c031",
+      "valid": true,
+      "caught": true,
+      "raw_output": "{\"severity\": \"major\", \"category\": \"Incorrect Field Access\", \"line\": 2, \"issue\": \"The method accesses the city field directly from the address object without using the getter defined on the Customer class, which violates encapsulation.\", \"suggested_fix\": \"Change customer.getAddress().getCity() to customer.getAddress().getCity().toUpperCase().\"}"
+    },
+    {
+      "id": "68c7f5d2-757b-4a1d-a350-99acc2c4f9cd",
+      "valid": true,
+      "caught": true,
+      "raw_output": "{\"severity\": \"major\", \"category\": \"NullPointerException Risk\", \"line\": 3, \"issue\": \"The method does not check if the file exists or is accessible before attempting to open a reader.\", \"suggested_fix\": \"Add a check for the existence of the file using Files.exists(Paths.get(path)) before creating the BufferedReader.\"}"
+    },
+    {
+      "id": "fd743d34-0488-4222-b591-5f7c8508a152",
+      "valid": true,
+      "caught": false,
+      "raw_output": "{\"severity\": \"major\", \"category\": \"Null Pointer Exception Risk\", \"line\": 8, \"issue\": \"The equals method uses the value field directly without checking for null values, which can lead to NullPointerException when comparing objects.\", \"suggested_fix\": \"Add a null check to the equals method: return value == null ? other.value == null : value.equals(other.value);\"}"
+    },
+    {
+      "id": "0d9474a0-9d5f-434a-86c3-21de1316a566",
+      "valid": true,
+      "caught": true,
+      "raw_output": "{\"severity\": \"major\", \"category\": \"Logic Error\", \"line\": 3, \"issue\": \"The loop condition is set to include `i <= values.length`, which will cause an ArrayIndexOutOfBoundsException when checking the last element.\", \"suggested_fix\": \"Change the loop condition to `i < values.length` to avoid accessing out-of-bounds elements.\"}"
+    },
+    {
+      "id": "8e4303cd-4b06-4f37-ab68-ee0ce18d0330",
+      "valid": true,
+      "caught": true,
+      "raw_output": "{\"severity\": \"major\", \"category\": \"Logic Error\", \"line\": 3, \"issue\": \"The code attempts to retrieve the customer name using the repository instead of the order object.\", \"suggested_fix\": \"Change `customerRepository.findById(order.getCustomerId())` to `order::getCustomerName`.\"}"
+    },
+    {
+      "id": "7ad666d5-521c-4eef-a1f3-0cde6b4a27b8",
+      "valid": true,
+      "caught": true,
+      "raw_output": "{\"severity\": \"major\", \"category\": \"Logic Error\", \"line\": 3, \"issue\": \"The balance of the 'from' account is correctly updated but the balance of the 'to' account is incorrectly updated using the original 'amount' variable instead of the calculated 'amount'. This can lead to incorrect financial transactions.\", \"suggested_fix\": \"Change 'accountRepository.save(to)' back to 'accountRepository.save(to);'.\"}"
+    },
+    {
+      "id": "f636ab35-05ab-4d28-83c0-fe60613ec4d7",
+      "valid": true,
+      "caught": true,
+      "raw_output": "{\"severity\": \"major\", \"category\": \"Static Field Initialization\", \"line\": 3, \"issue\": \"The static field initialization is performed inside the static method instead of being moved outside to ensure that the instance variable is properly initialized before returning it.\", \"suggested_fix\": \"Move the instance initialization outside the static block so that it runs before the static method is called.\"}"
+    },
+    {
+      "id": "9fbbb788-6f28-4993-9acc-3d24064834b8",
+      "valid": true,
+      "caught": true,
+      "raw_output": "{\"severity\": \"major\", \"category\": \"Incorrect Calculation\", \"line\": 2, \"issue\": \"The method incorrectly multiplies the number of dollars by 100 instead of adding the cents to the result of multiplying dollars by 100.\", \"suggested_fix\": \"Change `dollars * 100` to `dollars * 100 + cents`.\"}"
+    },
+    {
+      "id": "3b83c425-b932-4cf4-bd5c-2c9f7f77e53a",
+      "valid": true,
+      "caught": true,
+      "raw_output": "{\"severity\": \"major\", \"category\": \"Logic Error\", \"line\": 3, \"issue\": \"The catch block is empty, which means exceptions will be ignored instead of being handled properly.\", \"suggested_fix\": \"Add proper exception handling inside the catch block to manage errors appropriately.\"}"
+    },
+    {
+      "id": "4b3d4263-9d35-404c-834b-1a1aee5b7ce5",
+      "valid": true,
+      "caught": true,
+      "raw_output": "{\"severity\": \"major\", \"category\": \"Incorrect Accessor\", \"line\": 3, \"issue\": \"The getter for the items list is named 'getItems' instead of the standard '.getItems'. This will cause compile-time errors when trying to use the returned list directly.\", \"suggested_fix\": \"Change the getter name from 'getItems' to 'getItems()'.\"}"
+    },
+    {
+      "id": "ed166075-8cff-405e-9763-002ea325785f",
+      "valid": true,
+      "caught": true,
+      "raw_output": "{\"severity\": \"major\", \"category\": \"Missing Parameter Validation\", \"line\": 3, \"issue\": \"The method signature requires a HttpServletResponse parameter but does not validate its presence or type, which can cause compilation errors if the wrong type is passed.\", \"suggested_fix\": \"Add validation checks for the HttpServletResponse parameter to ensure it is not null.\"}"
+    },
+    {
+      "id": "e81c6a99-0388-4d96-8f21-19880b7e4400",
+      "valid": true,
+      "caught": true,
+      "raw_output": "{\"severity\": \"critical\", \"category\": \"Logic Error\", \"line\": 3, \"issue\": \"The method returns true if the token is either empty or null instead of checking if it has expired.\", \"suggested_fix\": \"Change the condition from `token.isEmpty() || token == null` to `token.isEmpty() || !isValid(token)` where `isValid` is a method that checks if the token is expired.\"}"
+    },
+    {
+      "id": "3e575a92-0f36-4855-8f3f-ea26a7b16310",
+      "valid": true,
+      "caught": true,
+      "raw_output": "{\"severity\": \"major\", \"category\": \"Incorrect Logging Context\", \"line\": 2, \"issue\": \"The log message incorrectly includes the actual credentials instead of a placeholder for security purposes.\", \"suggested_fix\": \"Change 'login attempt user={} pass={}' to 'login attempt user=*** pass=***'.\"}"
+    },
+    {
+      "id": "b13744e5-1bde-4883-84bb-716f383b6430",
+      "valid": false,
+      "caught": false,
+      "raw_output": "{\"severity\": \"major\", \"category\": \"Incorrect Return Value\", \"line\": 3, \"issue\": \"The method returns the computed string without removing the trailing comma and space added inside the loop.\", \"suggested_fix\": \"Remove the extra comma and space from the end of the result variable assignment: `result += name + \", \";` -> `result += name + \", \";`\"}"
+    },
+    {
+      "id": "371781a9-d999-46be-bed0-299de6478fa5",
+      "valid": true,
+      "caught": true,
+      "raw_output": "{\"severity\": \"major\", \"category\": \"Constructor Parameter Mismatch\", \"line\": 3, \"issue\": \"The constructor parameter order is reversed compared to the field declaration order.\", \"suggested_fix\": \"Change the constructor argument order from (int y, int x) to (int x, int y).\"}"
+    },
+    {
+      "id": "80374602-c0e4-4683-9096-64882a647836",
+      "valid": true,
+      "caught": true,
+      "raw_output": "{\"severity\": \"major\", \"category\": \"Logic Error\", \"line\": 3, \"issue\": \"The method returns true as soon as it finds a match instead of checking all elements.\", \"suggested_fix\": \"Change the return statement to `return values.stream().anyMatch(v -> v.matches(pattern));`.\"}"
+    },
+    {
+      "id": "aa39afa9-2b7f-4f6e-b14b-b5fdae57ce5e",
+      "valid": true,
+      "caught": true,
+      "raw_output": "{\"severity\": \"major\", \"category\": \"Logic Error\", \"line\": 2, \"issue\": \"The condition checks if the session has expired based on a fixed time threshold (1800000 milliseconds), which is hardcoded instead of using a variable like the expiration duration.\", \"suggested_fix\": \"Change the comparison to use the expirationDuration constant: `return System.currentTimeMillis() - lastSeenMillis > expirationDuration;`\"}"
+    },
+    {
+      "id": "bb015eff-04f6-4864-861e-d7405650bf79",
+      "valid": true,
+      "caught": true,
+      "raw_output": "{\"severity\": \"major\", \"category\": \"Incorrect Date Format\", \"line\": 3, \"issue\": \"The SimpleDateFormat is configured to use 'MMM' for month abbreviations instead of 'MM' for two-digit months.\", \"suggested_fix\": \"Change 'MMM' to 'MM' in the SimpleDateFormat constructor.\"}"
+    },
+    {
+      "id": "425e16e9-1f18-40fd-ab29-cf3742dde5a9",
+      "valid": true,
+      "caught": true,
+      "raw_output": "{\"severity\": \"major\", \"category\": \"Incorrect Method Call\", \"line\": 3, \"issue\": \"The getName() method is called on the superclass instead of the instance variable 'name'. This will cause a compile-time error if 'name' is not accessible from the superclass.\", \"suggested_fix\": \"Change 'super.getName()' to 'this.name.toUpperCase()'.\"}"
+    },
+    {
+      "id": "c3cba349-4bdd-490e-ac57-730dbe3bebdd",
+      "valid": true,
+      "caught": true,
+      "raw_output": "{\"severity\": \"critical\", \"category\": \"Null Pointer Exception Risk\", \"line\": 3, \"issue\": \"The condition checks both 'value' and 'null', which is redundant and will always evaluate to true, causing a NullPointerException.\", \"suggested_fix\": \"Remove the duplicate check for 'value'.\"}"
+    },
+    {
+      "id": "c0600d65-3078-4399-8ccf-38d1aff6fead",
+      "valid": true,
+      "caught": true,
+      "raw_output": "{\"severity\": \"critical\", \"category\": \"NullPointerException Risk\", \"line\": 3, \"issue\": \"The method returns 'orderRepository.findById(id)' without checking if the result is null, which can cause a NullPointerException if the repository fails to find an order.\", \"suggested_fix\": \"Add a null check before returning the repository result: if (result == null) throw new IllegalArgumentException(\\\"No order found for id \\\" + id); else return result;\"}"
+    },
+    {
+      "id": "d7996881-e096-4c66-bc40-47133e9743f8",
+      "valid": true,
+      "caught": true,
+      "raw_output": "{\"severity\": \"major\", \"category\": \"Incorrect Method Signature\", \"line\": 3, \"issue\": \"The method signature declares that it will return a generic PaymentResult instead of the specific ChargeResult returned by the payment gateway.\", \"suggested_fix\": \"Change the return type from PaymentResult to ChargeResult.\"}"
+    },
+    {
+      "id": "69a305f1-4ca8-4866-b8c8-ee753e04ea0d",
+      "valid": true,
+      "caught": false,
+      "raw_output": "{\"severity\": \"major\", \"category\": \"Logic Error\", \"line\": 38, \"issue\": \"The validate() method is called on the cookie spec before validation, which can cause validation errors to be ignored.\", \"suggested_fix\": \"Change the order of calling validate() and adding the cookie to the map.\"}"
+    },
+    {
+      "id": "d3681ad8-15df-468f-bebc-a3e3c52326a3",
+      "valid": true,
+      "caught": true,
+      "raw_output": "{\"severity\": \"major\", \"category\": \"Missing Exception Handling\", \"line\": 3, \"issue\": \"The exception is caught but ignored, which can mask underlying issues like database connectivity problems.\", \"suggested_fix\": \"Add proper logging or rethrowing the exception so that the caller can handle it appropriately.\"}"
+    },
+    {
+      "id": "7ed3e858-08a6-4915-834b-d14f9873abab",
+      "valid": true,
+      "caught": true,
+      "raw_output": "{\"severity\": \"critical\", \"category\": \"NullPointerException\", \"line\": 38, \"issue\": \"The call to MimeType constructor without passing the parameters variable will cause a NullPointerException.\", \"suggested_fix\": \"Pass the parameters map to the MimeType constructor: new MimeType(type, subtype, parameters);\"}"
+    },
+    {
+      "id": "aa58f474-52eb-479f-a334-3729437592b4",
+      "valid": true,
+      "caught": false,
+      "raw_output": "{\"severity\": \"major\", \"category\": \"Null Pointer Exception Risk\", \"line\": 13, \"issue\": \"The method returns null when the language part is empty instead of throwing an exception.\", \"suggested_fix\": \"Add a check to throw an IllegalArgumentException if the language part is empty.\"}"
+    },
+    {
+      "id": "c7a2180f-88ec-4726-a12e-609984c6aecb",
+      "valid": true,
+      "caught": false,
+      "raw_output": "{\"severity\": \"major\", \"category\": \"Logic Error\", \"line\": 9, \"issue\": \"The condition for checking if the string contains the escaped quote is reversed; it checks if the escaped quote string is present instead of the actual quoted string.\", \"suggested_fix\": \"Change `value.contains(escapedQuoteString)` to `value.contains(quoteString)`.\"}"
+    },
+    {
+      "id": "7a57f4df-ca85-4e2d-939c-95e381b1b064",
+      "valid": true,
+      "caught": false,
+      "raw_output": "{\"severity\": \"critical\", \"category\": \"Null Pointer Exception\", \"line\": 28, \"issue\": \"The call to calendar.setTime(date) inside the try block will throw a NullPointerException if date is null because calendar is initialized before the try block.\", \"suggested_fix\": \"Initialize calendar before setting the time to avoid the NullPointerException.\"}"
+    },
+    {
+      "id": "81d7bbd9-2cdb-44e4-8a7f-abc94a834bb3",
+      "valid": true,
+      "caught": false,
+      "raw_output": "{\"severity\": \"critical\", \"category\": \"Logic Error\", \"line\": 8, \"issue\": \"The condition to check for cycles is incorrect; it checks if the current role is contained within the rolesToVisitSet instead of checking if the role is contained within the visitedRolesSet.\", \"suggested_fix\": \"Change rolesToVisitSet.contains(role) to visitedRolesSet.contains(role).\"}"
+    },
+    {
+      "id": "2b7d1b13-d85b-4ca0-8a6e-48523cce0108",
+      "valid": true,
+      "caught": true,
+      "raw_output": "{\"severity\": \"critical\", \"category\": \"Null Pointer Exception Risk\", \"line\": 3, \"issue\": \"The method returns null instead of throwing an exception when listenerConsumer is null, which can lead to runtime NullPointerExceptions.\", \"suggested_fix\": \"Add a check for listenerConsumer being null before calling its methods.\"}"
+    },
+    {
+      "id": "f1e7bb61-09bd-4da3-9975-b0962f99e2cb",
+      "valid": true,
+      "caught": true,
+      "raw_output": "{\"severity\": \"major\", \"category\": \"Logic Error\", \"line\": 3, \"issue\": \"The condition checks if the value is greater than zero instead of less than zero to determine whether to increment or decrement.\", \"suggested_fix\": \"Change the comparison operator from `>` to `<`.\"}"
+    },
+    {
+      "id": "2f595c3a-38d7-4c90-bd7b-538dad899000",
+      "valid": true,
+      "caught": false,
+      "raw_output": "{\"severity\": \"critical\", \"category\": \"Logic Error\", \"line\": 8, \"issue\": \"The condition checks if the session ID is equal to the original session ID instead of checking if it has changed.\", \"suggested_fix\": \"Change `if (sessionId.equals(this.originalSessionId))` to `if (!sessionId.equals(this.originalSessionId))`.\"}"
+    }
+  ]
+}

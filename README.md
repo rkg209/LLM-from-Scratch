@@ -80,9 +80,9 @@ flowchart TD
 <!-- EVAL_TABLE_START -->
 | System | Schema-validity | Bug-catch | n |
 |---|---|---|---|
-| Fine-tuned (QLoRA, Qwen2.5-Coder-1.5B) | — | — | — |
-| Base model (zero-shot) | — | — | — |
-| Frontier API (3-shot) | — | — | — |
+| Fine-tuned (QLoRA, Qwen2.5-Coder-1.5B) | 0.97 | 0.80 | 40 |
+| Base model (zero-shot) | 0.00 | 0.00 | 40 |
+| Frontier API (3-shot) | 1.00 | 0.82 | 40 |
 <!-- EVAL_TABLE_END -->
 
 The holdout is 40 records (30 hand-written synthetic-clean, 10 mined from real Java/Spring
@@ -90,11 +90,26 @@ code, all Apache-2.0, labelled from the maintainers' own fix commits). It was fr
 `eval/holdout/manifest.json` and `eval/frozen_hashes.txt` — **before any fine-tuning token was
 spent**, and the training data generated afterwards was deduplicated against it by content
 hash (`ch2_adaptation/holdout_curator.py`). No training, data-generation, or prompt-tuning
-code may read it; a repo hook enforces that unconditionally. **Current state:** the set is
-frozen and the fine-tuned adapter exists; the table above is empty because the scoring run
-(spec C5) hasn't happened yet — see `specs/STATUS.md`. See
-[`docs/finetune-vs-prompting.md`](docs/finetune-vs-prompting.md) for what this table will
-mean once it is filled.
+code may read it; a repo hook enforces that unconditionally.
+
+**Read the table honestly: the fine-tune lost to the frontier API on both metrics.** It scored
+0.97 schema-validity to the frontier model's 1.00, and caught 32 of 40 bugs to its 33 — one
+record behind on each. What the fine-tune *did* win, decisively, is the comparison against its
+own starting point: the same 1.5B weights, zero-shot, score **0.00** schema-validity on these 40
+records, because every single response arrives wrapped in a markdown fence and the harness does
+not strip fences to be kind. Fine-tuning took that model from unusable-without-a-parser to 39/40
+valid, and the one failure is not a fence — it is unescaped quotes in a Java snippet inside the
+JSON string. On n = 40, a one-record gap is 2.5 points and settles nothing about which model is
+better; it is reported here because hiding it would be the only dishonest option.
+[`docs/finetune-vs-prompting.md`](docs/finetune-vs-prompting.md) has the per-record breakdown of
+where the two disagree, and the cost/latency/privacy case that does not depend on winning this
+table.
+
+One measurement asymmetry worth naming rather than burying: the base-model row was scored fp32 on
+CPU, the fine-tuned row 4-bit NF4 on an A100 (the adapter is reloaded exactly as it was trained),
+and the frontier row is an API with native JSON mode. Same holdout, same harness, same prompts —
+different execution substrates, by design, because each row is measured the way that system would
+actually be run.
 
 **Chapter 1 — speedup and quantization cost** *(spec A5)*
 
@@ -138,8 +153,9 @@ model independently rediscovered code review.
 
 The eval set is independent of the training data and only partly real — 30 records
 synthetic-clean, 10 mined from real Java/Spring code, all 40 frozen first and deduplicated
-by content hash against everything used in training or prompting. Where the fine-tuned model loses, the table above will say so next to where it
-wins — no metric will be hidden because it doesn't flatter the result. The cost/latency/
+by content hash against everything used in training or prompting. Where the fine-tuned model
+loses, the table above says so next to where it wins — it lost both published metrics to the
+frontier API by one record each, and that is stated above rather than left to the cells. The cost/latency/
 privacy argument (a 1.5B model on a CPU box, no per-request API cost, no code leaving the
 network) holds regardless of which system wins on raw accuracy.
 

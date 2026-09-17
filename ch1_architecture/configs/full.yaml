@@ -11,18 +11,35 @@
 # a model that never becomes "recognizably English" (A3 AC-7). vocab_size: 4096 was
 # chosen because it was measured (BPETokenizer.train on the real corpus) to yield 153,512
 # tokens over the full corpus and an embedding table that is 10.0% of a ~21.0M-param
-# model — proportionate, not dominant. max_steps is set to keep total training tokens
-# within roughly 10x the corpus token count, the ceiling this project's own action plan
-# names as a reasonable overfitting bound; warmup_steps/ckpt_every/sample_every are
-# scaled down from the original 5000-step schedule in the same proportion.
+# model — proportionate, not dominant.
+#
+# max_steps and learning_rate were re-derived AGAIN on 2026-09-18 from a measured sweep,
+# superseding the reasoning that stood here before. That reasoning said: keep total
+# training tokens within roughly 10x the corpus token count, as an overfitting bound.
+# It was a proxy invented when nothing could detect overfitting directly. The held-out
+# validation split now measures it, so the proxy is retired in favour of the signal it
+# was standing in for -- and the sweep showed the proxy was pointing the wrong way. Two
+# 1000-step runs (Rudra jobs 402132 at lr 3e-4, 402133 at lr 1e-3), on the same held-out
+# tail, with val loss sampled every 25 steps:
+#
+#   lr 3e-4: val 4.5559 @ 200 steps -> 4.2650 @ 1000, still falling at the last step
+#   lr 1e-3: val 4.2440 @ 1000, still falling, train 3.93 vs val 4.24
+#
+# Neither overfits at 1000 steps (~60 passes over the 137,514-token training split): the
+# train/val gap stays around 0.3, so the model was under-trained, not memorizing -- the
+# opposite of what the 10x rule predicted. lr 1e-3 wins on held-out loss, and the win is
+# small (0.021) but consistent at every checkpoint. max_steps: 3000 continues from the
+# winner's deceleration (-0.117, -0.049, -0.020 per 250 steps, roughly halving), which
+# puts diminishing returns at around this budget. warmup/ckpt/sample/val intervals are
+# scaled to the 3000-step schedule.
 vocab_size: 4096
 d_model: 512
 n_heads: 8
 n_layers: 6
 seq_len: 256
 batch_size: 32
-max_steps: 200
-learning_rate: 0.0003
+max_steps: 3000
+learning_rate: 0.001
 clip_grad_norm: 1.0
 log_every: 10
 seed: 42
@@ -30,10 +47,10 @@ device: cuda
 run_name: ch1-full
 corpus_path: ch1_architecture/data/corpus.txt
 tokenizer_path: outputs/ch1/tokenizer.json
-warmup_steps: 10
+warmup_steps: 150
 lr_min_ratio: 0.1
-ckpt_every: 50
-sample_every: 25
+ckpt_every: 500
+sample_every: 500
 sample_prompt: "First Citizen:"
 max_new_tokens: 100
 temperature: 0.8
@@ -47,6 +64,6 @@ val_fraction: 0.1
 # Cheap — the held-out tail is about 59 non-overlapping windows, two batches — so it runs
 # often enough to show the shape of the curve, which is what tells us whether max_steps is
 # in the right place at all.
-val_every: 10
+val_every: 50
 wandb_project: ch1-architecture
 wandb_mode: online

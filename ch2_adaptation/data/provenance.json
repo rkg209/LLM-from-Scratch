@@ -1,0 +1,15 @@
+{
+  "run_id": "4af87e8b-5039-4093-9577-109a1d85ddfd",
+  "generated_at": "2026-09-17T13:09:51.150928+00:00",
+  "frontier_model": "gemini-3.5-flash-lite",
+  "prompt_template_hash": "ff6d4ffaa2863805055cf37f53bbd04283eae9738013bf6b118f43cb6f80d23b",
+  "n_requested": 300,
+  "n_valid": 226,
+  "n_skipped": 74,
+  "estimated_cost_usd": 0.0,
+  "actual_cost_usd": 0.0,
+  "train_path": "ch2_adaptation/data/train.jsonl",
+  "val_path": "ch2_adaptation/data/val.jsonl",
+  "split_seed": 42,
+  "n_dropped_line_mismatch": 13
+}

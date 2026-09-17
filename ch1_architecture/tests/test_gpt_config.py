@@ -67,6 +67,8 @@ def test_indivisible_head_split_is_rejected() -> None:
             checkpoint_path="outputs/ch1/model_smoke.pt",
             wandb_project="ch1-architecture",
             wandb_mode="disabled",
+            val_fraction=0.1,
+            val_every=5,
         )
 
 
@@ -88,6 +90,7 @@ def test_benchmark_config_rejects_warmup_at_or_above_n_steps() -> None:
             seed=42,
             device="cpu",
             eval_corpus_path="ch1_architecture/tests/fixtures/corpus_smoke.txt",
+            val_fraction=0.1,
             results_path="eval/results/ch1_benchmark.json",
             plots_dir="eval/results/plots",
         )
@@ -122,4 +125,6 @@ def test_unknown_device_is_rejected() -> None:
             checkpoint_path="outputs/ch1/model_smoke.pt",
             wandb_project="ch1-architecture",
             wandb_mode="disabled",
+            val_fraction=0.1,
+            val_every=5,
         )

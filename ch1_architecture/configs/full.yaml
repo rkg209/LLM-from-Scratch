@@ -39,5 +39,14 @@ max_new_tokens: 100
 temperature: 0.8
 top_k: 40
 checkpoint_path: outputs/ch1/model.pt
+# The last 10% of the corpus is held out: the tokenizer is fitted without it, training
+# never sees it, and both the validation loss here and the published perplexity in
+# benchmark_full.yaml score it. Without this the perplexity would be measured on text the
+# model had already passed over roughly ten times, which reports memorization.
+val_fraction: 0.1
+# Cheap — the held-out tail is about 59 non-overlapping windows, two batches — so it runs
+# often enough to show the shape of the curve, which is what tells us whether max_steps is
+# in the right place at all.
+val_every: 10
 wandb_project: ch1-architecture
 wandb_mode: online

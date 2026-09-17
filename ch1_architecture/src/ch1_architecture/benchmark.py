@@ -22,6 +22,7 @@ import torch.nn.functional as F
 from torch import nn
 
 from ch1_architecture.config import BenchmarkConfig, GPTConfig, load_benchmark_config
+from ch1_architecture.data import split_corpus_text
 from ch1_architecture.kv_cache import KVCache
 from ch1_architecture.model.gpt import GPTModel
 from ch1_architecture.quantize import quantize_model
@@ -115,9 +116,13 @@ def measure_tokens_per_sec_cached(
 
 
 def compute_perplexity(model: nn.Module, token_ids: list[int], seq_len: int) -> float:
-    """exp(mean cross-entropy) over non-overlapping windows of `token_ids` — a held-out
-    slice of the training corpus, never `eval/holdout/` (that is Chapter 2's, and the
-    leakage hook blocks it anyway).
+    """exp(mean cross-entropy) over non-overlapping windows of `token_ids`.
+
+    Callers pass the held-out tail from `split_token_ids`, never the whole corpus — this
+    function scores whatever it is handed and cannot tell the difference, which is
+    exactly how the published number came to be in-sample while this docstring claimed
+    otherwise. Chapter 2's frozen set is a different thing entirely and is off-limits
+    here; the leakage hook blocks it regardless.
     """
     model.eval()
     total_loss, n_windows = 0.0, 0
@@ -171,6 +176,11 @@ def _update_readme(results: dict[str, dict[str, float]], kv_cache: dict[str, flo
         f"({kv_cache['speedup']:.2f}x)."
     )
     lines.append("")
+    lines.append(
+        "Perplexity is measured on a held-out tail of the corpus that the training run "
+        "never saw, so it is a generalization number rather than a memorization one."
+    )
+    lines.append("")
     lines.append("![speedup](eval/results/plots/speedup_curve.png)")
     lines.append("![perplexity](eval/results/plots/perplexity_tradeoff.png)")
     update_readme_section(README_PATH, README_MARKER, "\n".join(lines))
@@ -188,7 +198,22 @@ def main() -> None:
     fp32_model, tokenizer, gpt_config = load_checkpoint_model_and_tokenizer(
         config.checkpoint_path, config.device
     )
-    eval_token_ids = tokenizer.encode(Path(config.eval_corpus_path).read_text())
+    corpus_text = Path(config.eval_corpus_path).read_text()
+    # Score the same held-out tail the training run never saw. Measuring perplexity on
+    # the corpus the model was trained on would report memorization: at the full config's
+    # token budget the training set is seen about ten times over, so an in-sample number
+    # would look good for the wrong reason and could not be defended as a quality claim.
+    _, eval_text = split_corpus_text(corpus_text, config.val_fraction)
+    if not eval_text:
+        raise ValueError(
+            f"val_fraction={config.val_fraction} holds out nothing from "
+            f"{len(corpus_text)} characters; perplexity would be measured in-sample"
+        )
+    eval_token_ids = tokenizer.encode(eval_text)
+    print(
+        f"[ch1-benchmark] perplexity on the held-out tail: {len(eval_token_ids)} tokens "
+        f"({config.val_fraction:.0%} of {config.eval_corpus_path})"
+    )
     prompt_ids = torch.tensor([tokenizer.encode(config.prompt)], device=config.device)
 
     results: dict[str, dict[str, float]] = {}
@@ -224,6 +249,10 @@ def main() -> None:
         "seed": config.seed,
         "checkpoint_path": config.checkpoint_path,
         "device": config.device,
+        "eval_corpus_path": config.eval_corpus_path,
+        "val_fraction": config.val_fraction,
+        "n_eval_tokens": len(eval_token_ids),
+        "perplexity_split": "held-out tail",
     }
     write_json_atomic(payload, config.results_path)
     _write_plots(results, config.plots_dir)

@@ -36,7 +36,7 @@ def test_ch1_smoke_train_is_bit_identical_across_runs(tmp_path) -> None:
         build_model,
         build_optimizer,
         build_scheduler,
-        build_tokenizer_and_loader,
+        build_tokenizer_and_loaders,
         training_loop,
     )
 
@@ -52,11 +52,14 @@ def test_ch1_smoke_train_is_bit_identical_across_runs(tmp_path) -> None:
             }
         )
         seed_everything(config.seed)
-        tokenizer, loader = build_tokenizer_and_loader(config)
+        tokenizer, loader, val_loader = build_tokenizer_and_loaders(config)
         model = build_model(config)
         optimizer = build_optimizer(model, config)
         scheduler = build_scheduler(optimizer, config)
-        return training_loop(model, loader, optimizer, scheduler, tokenizer, config)
+        losses, _ = training_loop(
+            model, loader, val_loader, optimizer, scheduler, tokenizer, config
+        )
+        return losses
 
     losses_a = run("a")
     losses_b = run("b")

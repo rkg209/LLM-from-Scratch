@@ -22,7 +22,12 @@ from torch.optim.lr_scheduler import LambdaLR
 from torch.utils.data import DataLoader
 
 from ch1_architecture.config import GPTConfig, load_gpt_config
-from ch1_architecture.data import CorpusDataset, make_dataloader
+from ch1_architecture.data import (
+    CorpusDataset,
+    make_dataloader,
+    make_eval_dataloader,
+    split_corpus_text,
+)
 from ch1_architecture.generate import generate
 from ch1_architecture.model.gpt import GPTModel
 from ch1_architecture.tokenizer import BPETokenizer
@@ -39,15 +44,21 @@ def _corpus_hash(text: str) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
 
-def build_tokenizer_and_loader(config: GPTConfig) -> tuple[BPETokenizer, DataLoader]:
-    """Train (or load a cached) tokenizer, then build the sliding-window dataloader.
+def build_tokenizer_and_loaders(
+    config: GPTConfig,
+) -> tuple[BPETokenizer, DataLoader, DataLoader]:
+    """Train (or load a cached) tokenizer, then build the train and validation loaders.
 
     The merge loop is a plain Python loop by design (A1 out-of-scope: not optimized).
     Retraining it every run would spend the 120s smoke budget on the wrong thing, so
     the result is cached and reused whenever the corpus is unchanged (keyed by hash).
     """
     corpus_text = Path(config.corpus_path).read_text()
-    corpus_hash = _corpus_hash(corpus_text)
+    train_text, val_text = split_corpus_text(corpus_text, config.val_fraction)
+    # Keyed on the training text and the vocabulary size, not the whole corpus: those are
+    # the two inputs that determine the merge table, and a cache hit on a tokenizer fitted
+    # to a different split would silently reintroduce the leak the split exists to close.
+    corpus_hash = _corpus_hash(f"{config.vocab_size}:{config.val_fraction}:{train_text}")
 
     tok_path = Path(config.tokenizer_path)
     hash_path = tok_path.with_suffix(tok_path.suffix + ".hash")
@@ -56,15 +67,24 @@ def build_tokenizer_and_loader(config: GPTConfig) -> tuple[BPETokenizer, DataLoa
         tokenizer = BPETokenizer.load(tok_path)
     else:
         tokenizer = BPETokenizer()
-        tokenizer.train(corpus_text, config.vocab_size)
+        tokenizer.train(train_text, config.vocab_size)
         tokenizer.save(tok_path)
         hash_path.parent.mkdir(parents=True, exist_ok=True)
         hash_path.write_text(corpus_hash)
 
-    token_ids = tokenizer.encode(corpus_text)
-    dataset = CorpusDataset(token_ids, config.seq_len)
-    loader = make_dataloader(dataset, config)
-    return tokenizer, loader
+    train_ids = tokenizer.encode(train_text)
+    val_ids = tokenizer.encode(val_text) if val_text else []
+    train_loader = make_dataloader(CorpusDataset(train_ids, config.seq_len), config)
+    # Non-overlapping windows, so every held-out token is scored exactly once and this
+    # loss is directly comparable to the perplexity `benchmark.py` publishes.
+    val_loader = make_eval_dataloader(
+        CorpusDataset(val_ids, config.seq_len, stride=config.seq_len), config
+    )
+    print(
+        f"[ch1] corpus: {len(train_ids)} train tokens / {len(val_ids)} held-out tokens "
+        f"({config.val_fraction:.0%} tail, split before the tokenizer was fitted)"
+    )
+    return tokenizer, train_loader, val_loader
 
 
 def build_model(config: GPTConfig) -> GPTModel:
@@ -119,17 +139,42 @@ def save_checkpoint(
     os.replace(tmp, path)
 
 
+@torch.no_grad()
+def evaluate(model: GPTModel, loader: DataLoader, config: GPTConfig) -> float:
+    """Mean cross-entropy over the held-out tail.
+
+    The model is put back in train mode by the caller's `model.train()` below; doing it
+    here as well would hide a missing one somewhere else.
+    """
+    model.eval()
+    total_loss, n_batches = 0.0, 0
+    for inputs, labels in loader:
+        inputs, labels = inputs.to(config.device), labels.to(config.device)
+        logits = model(inputs)
+        loss = F.cross_entropy(logits.view(-1, config.vocab_size), labels.view(-1))
+        total_loss += loss.item()
+        n_batches += 1
+    if n_batches == 0:
+        raise ValueError(
+            "validation split produced no batches — val_fraction is too small for this "
+            f"corpus and seq_len ({config.seq_len})"
+        )
+    return total_loss / n_batches
+
+
 def training_loop(
     model: GPTModel,
     loader: DataLoader,
+    val_loader: DataLoader,
     optimizer: AdamW,
     scheduler: LambdaLR,
     tokenizer: BPETokenizer,
     config: GPTConfig,
     wandb_run: Any | None = None,
-) -> list[float]:
+) -> tuple[list[float], list[tuple[int, float]]]:
     model.train()
     losses: list[float] = []
+    val_losses: list[tuple[int, float]] = []
     data_iter = iter(loader)
 
     for step in range(config.max_steps):
@@ -164,6 +209,24 @@ def training_loop(
                 }
             )
 
+        if step % config.val_every == 0 or step == config.max_steps - 1:
+            val_loss = evaluate(model, val_loader, config)
+            model.train()
+            val_losses.append((step, val_loss))
+            print(
+                f"[ch1] step {step}: train_loss={loss.item():.4f} "
+                f"val_loss={val_loss:.4f} val_ppl={math.exp(min(val_loss, 20.0)):.2f}",
+                flush=True,
+            )
+            if wandb_run is not None:
+                wandb_run.log(
+                    {
+                        "step": step,
+                        "val_loss": val_loss,
+                        "val_perplexity": math.exp(min(val_loss, 20.0)),
+                    }
+                )
+
         if step % config.sample_every == 0:
             sample_ids = torch.tensor(
                 [tokenizer.encode(config.sample_prompt)], device=config.device
@@ -183,6 +246,10 @@ def training_loop(
                 # valid UTF-8 sequence on their own — not a tokenizer bug, just not
                 # yet English. Log it as such rather than crashing the run over it.
                 sample_text = "<undecodable byte sequence>"
+            # Printed as well as logged: the samples are A3 AC-7's evidence, and on the
+            # GPU box W&B runs offline, so until someone syncs it the job log is the only
+            # record that exists.
+            print(f"[ch1] step {step} sample: {sample_text!r}", flush=True)
             if wandb_run is not None:
                 wandb_run.log({"step": step, "sample": sample_text})
             model.train()
@@ -190,7 +257,7 @@ def training_loop(
         if step % config.ckpt_every == 0 or step == config.max_steps - 1:
             save_checkpoint(model, optimizer, config, step, tokenizer)
 
-    return losses
+    return losses, val_losses
 
 
 def main() -> None:
@@ -201,7 +268,7 @@ def main() -> None:
     print(f"[ch1] config loaded: {args.config}")
     print(f"[ch1] run={config.run_name} device={config.device} seed={config.seed}")
 
-    tokenizer, loader = build_tokenizer_and_loader(config)
+    tokenizer, loader, val_loader = build_tokenizer_and_loaders(config)
     model = build_model(config)
     print(f"[ch1] model: {model.get_num_params() / 1e6:.2f}M parameters")
 
@@ -218,8 +285,15 @@ def main() -> None:
             config={f: getattr(config, f) for f in config.__dataclass_fields__},
         )
 
-    losses = training_loop(model, loader, optimizer, scheduler, tokenizer, config, wandb_run)
+    losses, val_losses = training_loop(
+        model, loader, val_loader, optimizer, scheduler, tokenizer, config, wandb_run
+    )
     print(f"[ch1] trained {config.max_steps} steps, final loss={losses[-1]:.4f}")
+    best_step, best_val = min(val_losses, key=lambda item: item[1])
+    print(
+        f"[ch1] final val_loss={val_losses[-1][1]:.4f} "
+        f"(best {best_val:.4f} at step {best_step} of {config.max_steps})"
+    )
     print(f"[ch1] checkpoint saved to {config.checkpoint_path}")
 
     if wandb_run is not None:

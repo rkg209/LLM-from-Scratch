@@ -36,6 +36,8 @@ class GPTConfig:
     checkpoint_path: str
     wandb_project: str
     wandb_mode: str  # "disabled" | "offline" | "online"
+    val_fraction: float  # tail of the corpus held out of training, scored as validation
+    val_every: int  # steps between validation passes
 
     def __post_init__(self) -> None:
         # Caught here or caught as a silently scrambled head dimension three hours into
@@ -46,6 +48,10 @@ class GPTConfig:
             )
         if self.device not in {"cpu", "cuda"}:
             raise ValueError(f"device must be 'cpu' or 'cuda', got {self.device!r}")
+        if not 0.0 <= self.val_fraction < 1.0:
+            raise ValueError(f"val_fraction must be in [0.0, 1.0), got {self.val_fraction}")
+        if self.val_every < 1:
+            raise ValueError(f"val_every must be >= 1, got {self.val_every}")
 
     @property
     def head_dim(self) -> int:
@@ -66,12 +72,15 @@ class BenchmarkConfig:
     seed: int
     device: str  # "cpu" | "cuda"
     eval_corpus_path: str
+    val_fraction: float  # must match the training config's, or the score is in-sample
     results_path: str
     plots_dir: str
 
     def __post_init__(self) -> None:
         if self.device not in {"cpu", "cuda"}:
             raise ValueError(f"device must be 'cpu' or 'cuda', got {self.device!r}")
+        if not 0.0 <= self.val_fraction < 1.0:
+            raise ValueError(f"val_fraction must be in [0.0, 1.0), got {self.val_fraction}")
         if self.warmup_steps >= self.n_steps:
             raise ValueError(
                 f"warmup_steps ({self.warmup_steps}) must be < n_steps ({self.n_steps})"

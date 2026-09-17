@@ -8,7 +8,7 @@ import pytest
 import torch
 from ch1_architecture.config import load_gpt_config
 
-from ch1_architecture.data import CorpusDataset, make_dataloader
+from ch1_architecture.data import CorpusDataset, make_dataloader, split_corpus_text
 
 CONFIG_PATH = Path("ch1_architecture/configs/smoke.yaml")
 
@@ -59,3 +59,33 @@ def test_dataloader_seed_is_reproducible() -> None:
     first = next(iter(make_dataloader(dataset, config)))[0]
     second = next(iter(make_dataloader(dataset, config)))[0]
     assert torch.equal(first, second)
+
+
+def test_split_corpus_text_holds_out_a_tail_and_loses_nothing() -> None:
+    text = "".join(chr(ord("a") + i % 26) for i in range(1000))
+    train, val = split_corpus_text(text, 0.1)
+    assert len(val) == 100
+    assert len(train) == 900
+    assert train + val == text
+
+
+def test_split_corpus_text_with_zero_fraction_holds_out_nothing() -> None:
+    train, val = split_corpus_text("abcdef", 0.0)
+    assert (train, val) == ("abcdef", "")
+
+
+def test_split_corpus_text_rejects_a_fraction_that_would_leave_no_training_text() -> None:
+    with pytest.raises(ValueError, match="val_fraction"):
+        split_corpus_text("abcdef", 1.0)
+
+
+def test_strided_dataset_windows_do_not_overlap() -> None:
+    token_ids = list(range(100))
+    dataset = CorpusDataset(token_ids, seq_len=10, stride=10)
+    starts = [dataset[i][0][0].item() for i in range(len(dataset))]
+    assert starts == [0, 10, 20, 30, 40, 50, 60, 70, 80]
+
+
+def test_default_stride_still_yields_every_offset() -> None:
+    dataset = CorpusDataset(list(range(100)), seq_len=10)
+    assert len(dataset) == 90

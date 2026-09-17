@@ -7,5 +7,8 @@ warmup_steps: 10
 seed: 42
 device: cuda
 eval_corpus_path: ch1_architecture/data/corpus.txt
+# Must match the training config's val_fraction. Same number, same tail, so perplexity is
+# scored on exactly the text the training run never saw.
+val_fraction: 0.1
 results_path: eval/results/ch1_benchmark.json
 plots_dir: eval/results/plots

@@ -39,6 +39,8 @@ def test_overfit_tiny_batch() -> None:
         checkpoint_path="outputs/ch1/model_smoke.pt",
         wandb_project="ch1-architecture",
         wandb_mode="disabled",
+        val_fraction=0.1,
+        val_every=5,
     )
     model = GPTModel(config)
     optimizer = torch.optim.AdamW(model.parameters(), lr=config.learning_rate)

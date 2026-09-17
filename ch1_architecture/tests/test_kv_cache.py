@@ -42,6 +42,8 @@ def _config() -> GPTConfig:
         checkpoint_path="outputs/ch1/model_smoke.pt",
         wandb_project="ch1-architecture",
         wandb_mode="disabled",
+        val_fraction=0.1,
+        val_every=5,
     )
 
 

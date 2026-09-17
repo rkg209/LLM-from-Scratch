@@ -4,6 +4,7 @@ and no checkpoint exists in CI, so these tests must not depend on a training run
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import pytest
@@ -15,9 +16,14 @@ from ch1_architecture.benchmark import (
     measure_tokens_per_sec,
     measure_tokens_per_sec_cached,
 )
-from ch1_architecture.config import GPTConfig
+from ch1_architecture.benchmark import (
+    main as benchmark_main,
+)
+from ch1_architecture.config import BenchmarkConfig, GPTConfig
 from ch1_architecture.model.gpt import GPTModel
 from ch1_architecture.tokenizer import BPETokenizer
+
+from ch1_architecture.data import split_corpus_text
 
 CORPUS = Path("ch1_architecture/tests/fixtures/corpus_smoke.txt").read_text()
 
@@ -53,6 +59,8 @@ def _tiny_checkpoint(tmp_path: Path) -> tuple[Path, GPTConfig]:
         checkpoint_path=str(tmp_path / "model.pt"),
         wandb_project="ch1-architecture",
         wandb_mode="disabled",
+        val_fraction=0.1,
+        val_every=5,
     )
     model = GPTModel(config)
 
@@ -140,3 +148,84 @@ def test_compute_perplexity_runs_on_a_non_cpu_model(tmp_path: Path) -> None:
     ppl = compute_perplexity(model, list(range(200)) * 2, seq_len=config.seq_len)
     assert ppl > 0
     assert ppl == ppl
+
+
+def test_perplexity_on_the_held_out_tail_differs_from_the_in_sample_number(
+    tmp_path: Path,
+) -> None:
+    """The held-out score must actually be a different measurement.
+
+    If someone reverts the split, the benchmark would score the whole corpus again and
+    these two numbers would coincide. They are computed here from the same model on the
+    same corpus, differing only in which slice is scored.
+    """
+    _, config = _tiny_checkpoint(tmp_path)
+    model = GPTModel(config)
+    tokenizer = BPETokenizer()
+    tokenizer.train(CORPUS, vocab_size=260)
+
+    train_text, val_text = split_corpus_text(CORPUS, 0.1)
+    in_sample = compute_perplexity(model, tokenizer.encode(CORPUS), config.seq_len)
+    held_out = compute_perplexity(model, tokenizer.encode(val_text), config.seq_len)
+
+    assert train_text and val_text
+    assert held_out != in_sample
+
+
+def test_benchmark_main_records_which_slice_it_scored(tmp_path: Path, monkeypatch) -> None:
+    ckpt_path, _ = _tiny_checkpoint(tmp_path)
+    results_path = tmp_path / "ch1_benchmark.json"
+    config_path = tmp_path / "benchmark_test.yaml"
+    config_path.write_text(
+        "\n".join(
+            [
+                f"checkpoint_path: {ckpt_path}",
+                "modes: [fp32]",
+                'prompt: "a"',
+                "n_steps: 3",
+                "warmup_steps: 1",
+                "seed: 42",
+                "device: cpu",
+                "eval_corpus_path: ch1_architecture/tests/fixtures/corpus_smoke.txt",
+                "val_fraction: 0.1",
+                f"results_path: {results_path}",
+                f"plots_dir: {tmp_path / 'plots'}",
+            ]
+        )
+    )
+    monkeypatch.setattr("sys.argv", ["benchmark", "--config", str(config_path)])
+    # The config name and checkpoint path carry no "smoke" marker, so `main` takes this
+    # for a real run and publishes to the README. Point that at a throwaway file: a test
+    # must never rewrite the repository's own results section.
+    readme = tmp_path / "README.md"
+    readme.write_text("<!-- CH1_BENCHMARK_START -->\n<!-- CH1_BENCHMARK_END -->\n")
+    monkeypatch.setattr("ch1_architecture.benchmark.README_PATH", readme)
+    benchmark_main()
+    assert "tokens/sec" in readme.read_text()
+
+    payload = json.loads(results_path.read_text())
+    assert payload["val_fraction"] == 0.1
+    assert payload["perplexity_split"] == "held-out tail"
+    # The artifact has to be able to prove on its own that something was held out: a
+    # tenth of the corpus, not all of it.
+    tokenizer = BPETokenizer()
+    tokenizer.train(CORPUS, vocab_size=260)
+    assert 0 < payload["n_eval_tokens"] < len(tokenizer.encode(CORPUS)) // 2
+
+
+def test_benchmark_refuses_a_config_that_holds_nothing_out(tmp_path: Path) -> None:
+    _, config = _tiny_checkpoint(tmp_path)
+    with pytest.raises(ValueError, match="val_fraction"):
+        BenchmarkConfig(
+            checkpoint_path=str(tmp_path / "model.pt"),
+            modes=["fp32"],
+            prompt="a",
+            n_steps=3,
+            warmup_steps=1,
+            seed=42,
+            device="cpu",
+            eval_corpus_path="ch1_architecture/tests/fixtures/corpus_smoke.txt",
+            val_fraction=1.5,
+            results_path=str(tmp_path / "r.json"),
+            plots_dir=str(tmp_path / "plots"),
+        )

@@ -119,6 +119,35 @@ and the prompt consumes a few tokens. The trend is still rising at the right-han
 the plot, so the curve is a lower bound on what a longer-context version of this model
 would show, not a plateau.
 
+## The same checkpoint on CPU: 4.45x
+
+Job 402179, the `small` partition, identical weights and identical code — only `device`
+changed. Source: `eval/results/ch1_benchmark_cpu.json`.
+
+| Decode length | cached tok/s | uncached tok/s | speedup |
+|---|---|---|---|
+| 32 | 220.7 | 90.4 | 2.44x |
+| 64 | 226.6 | 75.7 | 2.99x |
+| 128 | 224.0 | 67.6 | 3.31x |
+| 250 | 219.8 | 49.4 | **4.45x** |
+
+This is the argument above, confirmed by changing exactly one variable. Cached throughput
+is flat on CPU too (~220 tok/s at every length), because a cached step's work does not
+depend on history length on any device. What changes is the uncached column: on CPU it
+collapses from 90.4 to 49.4 tok/s, where on the A100 it drifted from 271.6 to 265.0. The
+prefix re-encoding that an A100 performs in noise costs a CPU most of its throughput.
+
+So the cache is worth 1.03x on one device and 4.45x on another, with the same weights and
+the same code. A KV-cache's value is not a property of the KV-cache; it is a property of
+what the prefix re-encoding costs on the hardware you are running. Quoting a single
+speedup for "a KV-cache" hides precisely the variable that determines the answer.
+
+The CPU number is also the one this project should care about, since Chapter 3 serves on
+CPU. Note too that CPU *cached* decoding (219.8 tok/s) is within 20% of the A100's 272.9:
+once the quadratic work is cached away, a 21M model at batch 1 is dominated by per-step
+overhead that a GPU does not help with. That is a Chapter 3 argument as much as a
+Chapter 1 one — it is why serving this class of model on CPU is viable at all.
+
 ## What I got wrong
 
 The mask slice was the surprise. The original design note this code was built from said

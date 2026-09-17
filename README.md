@@ -155,28 +155,52 @@ A 21.0M-parameter GPT written from scratch, trained for 3000 steps on one A100, 
 learning rate come from a measured sweep on held-out loss, not from a guess — see
 `ch1_architecture/configs/full.yaml`, which records the sweep that set them.
 
-**Every quantization mode is slower than fp32, and that is the finding.** int4 costs
-2.2× throughput for a 37% perplexity increase (61.45 → 84.11); int8 is nearly free on
-quality (61.70) and still slower. The reason is in the implementation, not the idea:
-absmax quantization here is hand-written in pure PyTorch (the chapter's whole point — no
-bitsandbytes), so every forward pass dequantizes inside Python-level ops with no fused
-kernel. That buys memory and pays latency, and on an A100 the trade is a straight loss.
-It is also exactly why Chapter 3 serves GGUF through llama.cpp rather than shipping this
-code: the same idea, implemented where the kernels exist, is what makes CPU serving work.
+**On the A100, every quantization mode is slower than fp32 — and on CPU, int8 is 1.51×
+faster.** The same checkpoint and the same code, benchmarked on both (job 402166 on an
+A100, job 402179 on a CPU node):
 
-**The KV-cache reads 1.03×, and the two throughput columns are the interesting part.**
-Cached throughput is flat as the sequence grows (273.6 → 272.9 tok/s); uncached decays
-(271.6 → 265.0) because it re-encodes a longer prefix every step. That is precisely the
-mechanism a KV-cache removes, and the ratio climbs monotonically with decode length. The
-*magnitude* is small because a 21M-parameter model at batch 1 spends ~4.3 ms per step on
-kernel-launch overhead against ~0.08 ms of attention compute — the cache is eliminating
-work that was already free on this hardware. The same code on CPU, where that compute is
-not free, measures 1.28× at 8 decode steps and 1.31× at 12 — though that is the 0.12M
-smoke model on a 5 KB corpus, not this checkpoint, so read it as the mechanism showing up
-where compute dominates rather than as a comparable number. Reporting the 1.03× alone
-would suggest the cache does not work; reporting the two columns shows it does exactly
-what it should, at a scale where it does not yet matter. See
-[`docs/kv-cache.md`](docs/kv-cache.md).
+| Mode | A100 tok/s | CPU tok/s | perplexity |
+|---|---|---|---|
+| fp32 | 237.4 | 40.2 | 61.45 |
+| fp16 | 200.2 | 22.2 | 61.45 |
+| int8 | 219.8 | **60.5 (1.51×)** | 61.70 |
+| int4 | 107.6 | 22.8 | 84.11 |
+
+That reversal is the whole point. Absmax quantization here is hand-written in pure
+PyTorch (the chapter's premise — no bitsandbytes), so it dequantizes inside the forward
+pass with no fused kernel: it buys memory and pays arithmetic. On an A100, where memory
+was never the binding constraint, that is a straight loss. On a CPU, where the fp32
+matmul is bandwidth-bound, the smaller weights win back more than the dequantization
+costs — **1.51× throughput for a 0.42% perplexity increase**, which is the trade
+quantization is supposed to offer.
+
+int4 loses on both devices (0.45× on the A100, 0.57× on CPU) for a 37% perplexity
+increase, because 4-bit values must be unpacked before they can be used at all. Neither
+result is a bug, and neither is discarded: this is the measured reason Chapter 3 serves
+quantized GGUF on CPU rather than an unquantized model on a GPU it cannot afford.
+
+**The KV-cache reads 1.03× on the A100 and 4.45× on CPU — same weights, same code.**
+
+| Decode length | A100 speedup | CPU speedup | CPU cached tok/s | CPU uncached tok/s |
+|---|---|---|---|---|
+| 32 | 1.008× | 2.44× | 220.7 | 90.4 |
+| 64 | 1.010× | 2.99× | 226.6 | 75.7 |
+| 128 | 1.022× | 3.31× | 224.0 | 67.6 |
+| 250 | 1.030× | **4.45×** | 219.8 | 49.4 |
+
+Both columns describe one mechanism. Cached throughput is flat as the sequence grows —
+~220 tok/s on CPU at every length, ~273 on the A100 — because a cached step does the same
+work no matter how much history precedes it. Uncached throughput decays, and on CPU it
+collapses (90.4 → 49.4 tok/s) because re-encoding a lengthening prefix costs real time
+there. On the A100 it barely moves (271.6 → 265.0): a 21M-parameter model at batch 1
+spends ~4.3 ms per step on kernel-launch overhead against ~0.08 ms of attention compute,
+so the cache is eliminating work that was already free.
+
+The honest reading is that a KV-cache's value is not a property of the cache. It is a
+property of how expensive the prefix re-encoding is on the hardware in hand, and the
+gap between 1.03× and 4.45× on identical weights is the cleanest way to show it. The
+CPU number is also the one that matters for this project, since Chapter 3 serves on CPU.
+See [`docs/kv-cache.md`](docs/kv-cache.md).
 
 The three plots show three independent tradeoffs, not one curve: inference speed by
 quantization mode, the perplexity cost that speed buys (see

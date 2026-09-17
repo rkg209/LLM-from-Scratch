@@ -2,7 +2,8 @@
 
 Source: `ch1_architecture/src/ch1_architecture/quantize.py`,
 `ch1_architecture/src/ch1_architecture/benchmark.py`, `eval/results/ch1_benchmark.json`
-(once filled), `.claude/skills/gguf-export/SKILL.md` for the Chapter 3 tie-in.
+and `eval/results/ch1_benchmark_cpu.json`, `.claude/skills/gguf-export/SKILL.md` for the
+Chapter 3 tie-in.
 
 ## What absmax quantization actually does to a weight tensor
 
@@ -42,11 +43,11 @@ Halving the bytes of a `float32` weight should, by the bandwidth argument, speed
 up too — but there is no fast native CPU matmul path for `float16` the way there is for
 `float32` or for the integer paths' dequantize-then-`float32`-matmul. `QuantizedLinear`'s
 `fp16` branch (`F.linear(x.half(), self.weight, self.bias).float()`) still has to convert
-back before the actual multiply runs on hardware that has no fast fp16 kernel. The
-measured result (once the full-config benchmark runs — see below) is expected to show
-fp16 **slower** than fp32 on CPU, precisely because the "fewer bits → faster" intuition
-assumes a fast low-precision compute path that plain CPU PyTorch doesn't have. This is
-reported as a finding, not tuned away — see `README.md`'s speedup-curve prose.
+back before the actual multiply runs on hardware that has no fast fp16 kernel. **This
+prediction was written before the run and the run confirmed it**: fp16 measures 0.55x on
+CPU (22.2 tok/s against fp32's 40.2) and 0.84x on the A100 — slower on both, precisely
+because the "fewer bits -> faster" intuition assumes a fast low-precision compute path
+that plain PyTorch doesn't have here. Reported as a finding, not tuned away.
 
 ## Why quality degrades, and which capability degrades first
 
@@ -81,9 +82,10 @@ saw it. Source: `eval/results/ch1_benchmark.json`.
 | int8 | 219.8 | 0.93x | 61.70 | +0.42% |
 | int4 | 107.6 | 0.45x | 84.11 | +36.9% |
 
-**Every mode is slower than fp32.** The prediction above — that fp16 could be slower, not
-faster — held, and it held for int8 and int4 as well. int4 is the clearest case: 2.2x
-slower for a 37% perplexity increase, which is a loss on both axes simultaneously.
+**On this device, every mode is slower than fp32** — the prediction above about fp16 held,
+and held for int8 and int4 too. int4 is the clearest case: 2.2x slower for a 37%
+perplexity increase, a loss on both axes at once. The CPU section below shows int8
+reversing, which is the more useful half of the result.
 
 The cause is this implementation, not the technique. `QuantizedLinear` stores absmax-
 quantized weights and dequantizes them inside `forward`, in ordinary PyTorch ops, because
@@ -92,6 +94,31 @@ So every matmul pays a dequantization pass that fp32 never pays, and int4 additi
 pays bit-unpacking. What quantization buys in this implementation is memory; what it
 costs is latency. On an A100 — where memory was never the binding constraint — that is a
 straight loss.
+
+## The same checkpoint on CPU: int8 is 1.51x FASTER
+
+Job 402179, identical weights and code, only `device` changed. Source:
+`eval/results/ch1_benchmark_cpu.json`.
+
+| Mode | A100 tok/s | CPU tok/s | CPU vs fp32 | perplexity |
+|---|---|---|---|---|
+| fp32 | 237.4 | 40.2 | — | 61.45 |
+| fp16 | 200.2 | 22.2 | 0.55x | 61.45 |
+| int8 | 219.8 | **60.5** | **1.51x** | 61.70 |
+| int4 | 107.6 | 22.8 | 0.57x | 84.11 |
+
+**int8 reverses.** On the A100 it was a 0.93x loss; on CPU it is a 1.51x win, for the same
++0.42% perplexity. The dequantization cost did not change — what changed is what it is
+competing against. A CPU fp32 matmul at this size is bandwidth-bound, so halving the bytes
+moved buys more than the extra arithmetic costs. On an A100 with memory to spare, the
+arithmetic is pure overhead. Same code, same weights, opposite verdicts: quantization is a
+claim about a bottleneck, not about a model.
+
+int4 stays a loss on both (0.45x and 0.57x) because 4-bit values must be unpacked before
+any arithmetic can touch them, and the unpacking is per-forward-pass Python work that no
+amount of saved bandwidth pays for. fp16 is the worst case on CPU (0.55x): CPUs have no
+native fp16 arithmetic path here, so it converts to fp32 to compute and pays the
+conversion for nothing.
 
 Two things worth taking from that rather than filing it as a failure. First, int8's
 quality cost is genuinely negligible (+0.42% perplexity), so the *quality* half of the

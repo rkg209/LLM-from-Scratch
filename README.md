@@ -85,13 +85,14 @@ flowchart TD
 | Frontier API (3-shot) | — | — | — |
 <!-- EVAL_TABLE_END -->
 
-The holdout is **specified** at 40 records (30 hand-written synthetic-clean, 10 mined from
-real Java/Spring code), to be built and frozen before any fine-tuning token is spent, and
-deduplicated against both the training set and the earlier C1 stub set by content hash
-(`ch2_adaptation/holdout_curator.py`). Once frozen, no training, data-generation, or
-prompt-tuning code may read it — a repo hook enforces that unconditionally. **Current
-state:** 30 synthetic records are staged in `eval/staging/`; the 10 mined records and the
-freeze step are pending — see `specs/STATUS.md` (spec C2) for status. See
+The holdout is 40 records (30 hand-written synthetic-clean, 10 mined from real Java/Spring
+code, all Apache-2.0, labelled from the maintainers' own fix commits). It was frozen — with
+`eval/holdout/manifest.json` and `eval/frozen_hashes.txt` — **before any fine-tuning token was
+spent**, and the training data generated afterwards was deduplicated against it by content
+hash (`ch2_adaptation/holdout_curator.py`). No training, data-generation, or prompt-tuning
+code may read it; a repo hook enforces that unconditionally. **Current state:** the set is
+frozen and the fine-tuned adapter exists; the table above is empty because the scoring run
+(spec C5) hasn't happened yet — see `specs/STATUS.md`. See
 [`docs/finetune-vs-prompting.md`](docs/finetune-vs-prompting.md) for what this table will
 mean once it is filled.
 
@@ -116,11 +117,14 @@ cost that speed buys. The KV-cache line is a separate comparison again — see
 
 ## What this cost
 
-The constraint is part of the result: everything above was built for **≈$1 of total LLM
-API spend** (Gemini calls for synthetic data generation and the frontier baseline, both
-capped and logged — see `Usage` in `ch2_adaptation/baseline.py`), on **free-tier GPU
-compute** (Colab/Kaggle) for every training run, and serves on a **CPU-only, free HF
-Spaces tier** with no GPU at inference time. A reader who doesn't know the budget can't
+The constraint is part of the result: everything above was built under a **≈$1 cap on total
+LLM API spend**, and the actual spend so far is **$0.00** — the synthetic training data (226
+records) and the frontier baseline both fit inside `gemini-3.5-flash-lite`'s free tier, capped
+and logged either way (see `Usage` in `ch2_adaptation/baseline.py` and
+`ch2_adaptation/data/provenance.json`). Training runs use **GPU time that costs the project
+nothing**: the QLoRA fine-tune took 28 seconds on one A100 on a university HPC cluster
+(PARAM Rudra, IIT Bombay), and the recipe is sized to fit a free Colab/Kaggle session. Serving
+is a **CPU-only, free HF Spaces tier** with no GPU at inference time. A reader who doesn't know the budget can't
 see what was actually achieved inside it.
 
 ## How to read these numbers
@@ -132,10 +136,9 @@ signal. The comparison in the table above is honest about what it's measuring: w
 model's live few-shot performance on the narrow task it was taught — not whether a small
 model independently rediscovered code review.
 
-The eval set is designed to be independent of the training data and only partly real — 30
-records synthetic-clean, 10 mined from real Java/Spring code, all 40 deduplicated by
-content hash against everything used in training or prompting, once frozen (pending —
-spec C2). Where the fine-tuned model loses, the table above will say so next to where it
+The eval set is independent of the training data and only partly real — 30 records
+synthetic-clean, 10 mined from real Java/Spring code, all 40 frozen first and deduplicated
+by content hash against everything used in training or prompting. Where the fine-tuned model loses, the table above will say so next to where it
 wins — no metric will be hidden because it doesn't flatter the result. The cost/latency/
 privacy argument (a 1.5B model on a CPU box, no per-request API cost, no code leaving the
 network) holds regardless of which system wins on raw accuracy.

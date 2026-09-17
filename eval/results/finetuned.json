@@ -1,7 +1,13 @@
 {
+  "timestamp": "2026-09-17T19:39:54.691908+00:00",
   "model_tag": "Qwen/Qwen2.5-Coder-1.5B-Instruct",
   "adapter_path": "outputs/adapter",
+  "adapter_sha256": "ace891428d96be785b3d0a8be07205a1fa6df34d33712e74ce4e5c5944a9cc7a",
+  "holdout": "eval/holdout/holdout.jsonl",
+  "holdout_sha256": "9413aef8f77fc5c9ca853cc6d1666bbfcafea07d311503c6db0ac0df42cd691d",
+  "schema_sha256": "8ec466370d593675fbbc9c22bc6643916381e70ed21ac09126460a638c12cadb",
   "mode": "zero-shot",
+  "dtype": "int4",
   "schema_validity_rate": 0.975,
   "bug_catch_rate": 0.8,
   "n_samples": 40,

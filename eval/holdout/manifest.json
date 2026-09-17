@@ -15,5 +15,15 @@
     "spring-projects/spring-session"
   ],
   "schema_version": "8ec466370d593675fbbc9c22bc6643916381e70ed21ac09126460a638c12cadb",
-  "curator": "Rahul"
+  "curator": "Rahul",
+  "licenses": {
+    "spring-projects/spring-batch": "Apache-2.0",
+    "spring-projects/spring-boot": "Apache-2.0",
+    "spring-projects/spring-data-cassandra": "Apache-2.0",
+    "spring-projects/spring-framework": "Apache-2.0",
+    "spring-projects/spring-integration": "Apache-2.0",
+    "spring-projects/spring-kafka": "Apache-2.0",
+    "spring-projects/spring-security": "Apache-2.0",
+    "spring-projects/spring-session": "Apache-2.0"
+  }
 }

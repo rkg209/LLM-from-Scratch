@@ -28,6 +28,32 @@ token distribution favor it. That is the mechanical reason format conformance is
 first place a small specialist catches up to, and can pass, a much larger model prompted
 zero- or few-shot.
 
+### What the base model's 0.00 is actually made of (measured, 2026-09-18)
+
+The zero is not the single tidy "it wraps everything in a fence" story it is easy to tell. Of the
+40 zero-shot base-model outputs in `eval/results/baselines_holdout.json`:
+
+- **40/40** are markdown-fenced, which fails them immediately under the no-repair rule.
+- **12/40** would validate if the fence were stripped. The other 28 fail anyway: **27 on the
+  `severity` enum** — the model emits `"error"` (25) or `"warning"` (2), which is what a linter
+  calls those levels, against a schema that specifies `critical|major|minor|info` — and one on
+  malformed JSON (a raw control character inside a string).
+
+So format conformance here is two separate learned things: the *envelope* (no prose, no fence)
+and the *vocabulary* (this enum, not the one the model's pretraining makes obvious). A prompt can
+state both; the base model, read zero-shot, obeys neither reliably. The fine-tune fixed both at
+once, which is the real content of 0.00 → 0.97 — and it is a stronger claim than "it stopped
+adding fences", which is what the raw number lets you assume if you never open the per-sample
+outputs.
+
+**And the base model's 0.00 bug-catch is entailed, not observed.** `eval/harness.py` scores
+`caught = valid and is_bug_caught(...)`: validity gates catch by construction, so 0.00 validity
+forces 0.00 catch regardless of what the model saw. Its outputs do name real defects. Whether it
+would have *located* them within ±2 lines is unmeasured — it cannot be measured through this
+harness without relaxing the contract, which is not on the table. The honest reading of that cell
+is "no scorable answer", and the honest comparison it supports is against the fine-tune's
+*format* competence, not its *code-reading* competence.
+
 ## What few-shot prompting structurally cannot do
 
 Two shots or three shots of the target format compete with the actual task for the

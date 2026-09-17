@@ -96,11 +96,23 @@ code may read it; a repo hook enforces that unconditionally.
 0.97 schema-validity to the frontier model's 1.00, and caught 32 of 40 bugs to its 33 — one
 record behind on each. What the fine-tune *did* win, decisively, is the comparison against its
 own starting point: the same 1.5B weights, zero-shot, score **0.00** schema-validity on these 40
-records, because every single response arrives wrapped in a markdown fence and the harness does
-not strip fences to be kind. Fine-tuning took that model from unusable-without-a-parser to 39/40
-valid, and the one failure is not a fence — it is unescaped quotes in a Java snippet inside the
-JSON string. On n = 40, a one-record gap is 2.5 points and settles nothing about which model is
-better; it is reported here because hiding it would be the only dishonest option.
+records. Fine-tuning took that model from unusable-without-a-parser to 39/40 valid, and its one
+failure is not a fence — it is unescaped quotes in a Java snippet inside the JSON string. On
+n = 40, a one-record gap is 2.5 points and settles nothing about which model is better; it is
+reported here because hiding it would be the only dishonest option.
+
+**What the base model's two zeros actually mean.** They are one measurement and one consequence,
+and it is worth being precise about which is which. The 0.00 **schema-validity** has two stacked
+causes: all 40 responses arrive wrapped in a markdown fence (the harness does not strip fences to
+be kind), and even if you did strip them, only 12 of 40 would pass — 27 fail the `severity` enum,
+writing `"error"` or `"warning"`, a linter's vocabulary, where the schema demands
+`critical|major|minor|info`, and one is malformed JSON outright. Fine-tuning fixed both layers,
+which is a more interesting claim than fixing the wrapper alone. The 0.00 **bug-catch** is then
+arithmetic, not evidence: the harness scores `caught = valid and line-within-±2`, so a system at
+0.00 validity cannot score above 0.00 catch whatever it found. The base model's raw outputs do
+identify real defects — SQL injection, a race in a withdrawal path — and none of them could be
+checked against ground truth because none parsed. Read that cell as "no scorable answer", not as
+"read the code blindly".
 [`docs/finetune-vs-prompting.md`](docs/finetune-vs-prompting.md) has the per-record breakdown of
 where the two disagree, and the cost/latency/privacy case that does not depend on winning this
 table.

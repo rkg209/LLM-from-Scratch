@@ -1,0 +1,514 @@
+{
+  "timestamp": "2026-09-17T18:43:19.375599+00:00",
+  "stub_set": "eval/holdout/holdout.jsonl",
+  "stub_set_sha256": "9413aef8f77fc5c9ca853cc6d1666bbfcafea07d311503c6db0ac0df42cd691d",
+  "schema_sha256": "8ec466370d593675fbbc9c22bc6643916381e70ed21ac09126460a638c12cadb",
+  "base_model": {
+    "model_tag": "Qwen/Qwen2.5-Coder-1.5B-Instruct",
+    "mode": "zero-shot",
+    "dtype": "float32",
+    "schema_validity_rate": 0.0,
+    "bug_catch_rate": 0.0,
+    "n_samples": 40,
+    "n_valid": 0,
+    "n_caught": 0,
+    "per_sample": [
+      {
+        "id": "8e6a5331-9c16-4d79-895c-418855f848cd",
+        "valid": false,
+        "caught": false,
+        "raw_output": "```json\n{\n  \"severity\": \"info\",\n  \"category\": \"SQL Injection\",\n  \"line\": 3,\n  \"issue\": \"The SQL query is vulnerable to SQL injection because it directly concatenates user input into the SQL statement without proper sanitization.\",\n  \"suggested_fix\": \"Use parameterized queries to prevent SQL injection.\"\n}\n```"
+      },
+      {
+        "id": "75eb77e0-5334-4780-9811-4424e358bfff",
+        "valid": false,
+        "caught": false,
+        "raw_output": "```json\n{\n  \"severity\": \"error\",\n  \"category\": \"syntax\",\n  \"line\": 3,\n  \"issue\": \"The `parse` method of `DocumentBuilder` should be called on the `DocumentBuilder` instance obtained from `factory.newDocumentBuilder()`.\",\n  \"suggested_fix\": \"Change `builder.parse(input)` to `builder.parse(document)` where `document` is an instance of `Document`. \"\n}\n```"
+      },
+      {
+        "id": "b54e73dc-f1fd-41fd-bc24-2aaf46a98095",
+        "valid": false,
+        "caught": false,
+        "raw_output": "```json\n{\n  \"severity\": \"critical\",\n  \"category\": \"security\",\n  \"line\": 8,\n  \"issue\": \"Hardcoded sensitive information (SMTP_PASSWORD)\",\n  \"suggested_fix\": \"Use environment variables or secure configuration management tools to store sensitive information.\"\n}\n```"
+      },
+      {
+        "id": "19c28ade-3fc4-4c57-b863-44b1b15b8838",
+        "valid": false,
+        "caught": false,
+        "raw_output": "```json\n{\n  \"severity\": \"error\",\n  \"category\": \"code smell\",\n  \"line\": 3,\n  \"issue\": \"The `loadSession` method does not handle exceptions properly.\",\n  \"suggested_fix\": \"Add exception handling to catch and log any potential errors that may occur during deserialization.\"\n}\n```"
+      },
+      {
+        "id": "250a6361-7dc5-4c11-8c3b-7a0217968cf0",
+        "valid": false,
+        "caught": false,
+        "raw_output": "```json\n{\n  \"severity\": \"error\",\n  \"category\": \"syntax\",\n  \"line\": 3,\n  \"issue\": \"The command string is missing a space between 'convert' and the filename.\",\n  \"suggested_fix\": \"Add a space between 'convert' and the filename.\"\n}\n```"
+      },
+      {
+        "id": "bd3ff269-310d-43a9-adbb-afde654dbcc0",
+        "valid": false,
+        "caught": false,
+        "raw_output": "```json\n{\n  \"severity\": \"warning\",\n  \"category\": \"concurrency\",\n  \"line\": 3,\n  \"issue\": \"Potential race condition in withdrawal logic.\",\n  \"suggested_fix\": \"Use synchronization to ensure that only one thread can modify the account balance at a time.\"\n}\n```"
+      },
+      {
+        "id": "d053a06a-26f5-4120-82b6-059ffea8490c",
+        "valid": false,
+        "caught": false,
+        "raw_output": "```json\n{\n  \"severity\": \"info\",\n  \"category\": \"security\",\n  \"line\": 8,\n  \"issue\": \"The `trustAllContext` method does not handle exceptions properly.\",\n  \"suggested_fix\": \"Add exception handling to the `checkClientTrusted` and `checkServerTrusted` methods.\"\n}\n```"
+      },
+      {
+        "id": "ea3d611b-5700-422f-9727-50476894d466",
+        "valid": false,
+        "caught": false,
+        "raw_output": "```json\n{\n  \"severity\": \"error\",\n  \"category\": \"code smell\",\n  \"line\": 3,\n  \"issue\": \"The method `loadAvatar` does not handle exceptions properly.\",\n  \"suggested_fix\": \"Add exception handling to manage potential I/O errors.\"\n}\n```"
+      },
+      {
+        "id": "518fd770-1167-4c73-a72e-e549ebb1c031",
+        "valid": false,
+        "caught": false,
+        "raw_output": "```json\n{\n  \"severity\": \"info\",\n  \"category\": \"logic\",\n  \"line\": 3,\n  \"issue\": \"The method does not handle cases where the city is null.\",\n  \"suggested_fix\": \"Add a check to ensure that the city is not null before converting it to uppercase.\"\n}\n```"
+      },
+      {
+        "id": "68c7f5d2-757b-4a1d-a350-99acc2c4f9cd",
+        "valid": false,
+        "caught": false,
+        "raw_output": "```json\n{\n  \"severity\": \"error\",\n  \"category\": \"syntax\",\n  \"line\": 3,\n  \"issue\": \"The method `readFirstLine` does not handle exceptions properly.\",\n  \"suggested_fix\": \"Add exception handling to manage potential `IOException`s that may occur when reading from the file.\"\n}\n```"
+      },
+      {
+        "id": "fd743d34-0488-4222-b591-5f7c8508a152",
+        "valid": false,
+        "caught": false,
+        "raw_output": "```json\n{\n  \"severity\": \"error\",\n  \"category\": \"design\",\n  \"line\": 8,\n  \"issue\": \"The `equals` method should compare the `value` field of two `OrderId` objects instead of comparing their references.\",\n  \"suggested_fix\": \"Change the `equals` method to compare the `value` field.\"\n}\n```"
+      },
+      {
+        "id": "0d9474a0-9d5f-434a-86c3-21de1316a566",
+        "valid": false,
+        "caught": false,
+        "raw_output": "```json\n{\n  \"severity\": \"error\",\n  \"category\": \"logic\",\n  \"line\": 3,\n  \"issue\": \"The loop condition `i <= values.length` is incorrect because it will always execute at least once after the loop ends.\",\n  \"suggested_fix\": \"Change the loop condition to `i < values.length`.\"\n}\n```"
+      },
+      {
+        "id": "8e4303cd-4b06-4f37-ab68-ee0ce18d0330",
+        "valid": false,
+        "caught": false,
+        "raw_output": "```json\n{\n  \"severity\": \"info\",\n  \"category\": \"logic\",\n  \"line\": 8,\n  \"issue\": \"The `customerRepository.findById(order.getCustomerId())` call may throw an exception if the customer does not exist.\",\n  \"suggested_fix\": \"Add error handling to catch exceptions and handle them gracefully.\"\n}\n```"
+      },
+      {
+        "id": "7ad666d5-521c-4eef-a1f3-0cde6b4a27b8",
+        "valid": false,
+        "caught": false,
+        "raw_output": "```json\n{\n  \"severity\": \"error\",\n  \"category\": \"logic\",\n  \"line\": 3,\n  \"issue\": \"The `accountRepository.save(from)` call is executed twice, which can lead to inconsistent data if the transaction fails.\",\n  \"suggested_fix\": \"Remove the duplicate `accountRepository.save(from)` call.\"\n}\n```"
+      },
+      {
+        "id": "f636ab35-05ab-4d28-83c0-fe60613ec4d7",
+        "valid": false,
+        "caught": false,
+        "raw_output": "```json\n{\n  \"severity\": \"info\",\n  \"category\": \"design\",\n  \"line\": 3,\n  \"issue\": \"The `getInstance` method is synchronized but does not use any synchronization mechanism to ensure thread safety.\",\n  \"suggested_fix\": \"Remove the `synchronized` keyword from the `getInstance` method.\"\n}\n```"
+      },
+      {
+        "id": "9fbbb788-6f28-4993-9acc-3d24064834b8",
+        "valid": false,
+        "caught": false,
+        "raw_output": "```json\n{\n  \"severity\": \"error\",\n  \"category\": \"logic\",\n  \"line\": 3,\n  \"issue\": \"The method `totalCents` does not handle negative values correctly.\",\n  \"suggested_fix\": \"Add checks to ensure that both `dollars` and `cents` are non-negative.\"\n}\n```"
+      },
+      {
+        "id": "3b83c425-b932-4cf4-bd5c-2c9f7f77e53a",
+        "valid": false,
+        "caught": false,
+        "raw_output": "```json\n{\n  \"severity\": \"error\",\n  \"category\": \"logic\",\n  \"line\": 8,\n  \"issue\": \"Missing exception handling in catch block\",\n  \"suggested_fix\": \"Add a try-catch block to handle exceptions thrown by `task.run()`.\"\n}\n```"
+      },
+      {
+        "id": "4b3d4263-9d35-404c-834b-1a1aee5b7ce5",
+        "valid": false,
+        "caught": false,
+        "raw_output": "```json\n{\n  \"severity\": \"info\",\n  \"category\": \"design\",\n  \"line\": 3,\n  \"issue\": \"The `items` list is declared as `final`, which means it cannot be modified once it's initialized.\",\n  \"suggested_fix\": \"Consider using an `ArrayList` instead of a `List` to allow modifications.\"\n}\n```"
+      },
+      {
+        "id": "ed166075-8cff-405e-9763-002ea325785f",
+        "valid": false,
+        "caught": false,
+        "raw_output": "```json\n{\n  \"severity\": \"info\",\n  \"category\": \"code smell\",\n  \"line\": 3,\n  \"issue\": \"The `redirectAfterLogin` method does not handle exceptions properly.\",\n  \"suggested_fix\": \"Add exception handling to catch and log any potential `IOException`s that may occur during the redirection.\"\n}\n```"
+      },
+      {
+        "id": "e81c6a99-0388-4d96-8f21-19880b7e4400",
+        "valid": false,
+        "caught": false,
+        "raw_output": "```json\n{\n  \"severity\": \"error\",\n  \"category\": \"logic\",\n  \"line\": 3,\n  \"issue\": \"The method `isExpired` returns `true` if either the token is empty or `null`, which can lead to unexpected behavior.\",\n  \"suggested_fix\": \"Add checks for `null` values before comparing the token length.\"\n}\n```"
+      },
+      {
+        "id": "3e575a92-0f36-4855-8f3f-ea26a7b16310",
+        "valid": false,
+        "caught": false,
+        "raw_output": "```json\n{\n  \"severity\": \"info\",\n  \"category\": \"logging\",\n  \"line\": 3,\n  \"issue\": \"The logging message does not include the username and password.\",\n  \"suggested_fix\": \"Add the username and password to the logging message.\"\n}\n```"
+      },
+      {
+        "id": "b13744e5-1bde-4883-84bb-716f383b6430",
+        "valid": false,
+        "caught": false,
+        "raw_output": "```json\n{\n  \"severity\": \"info\",\n  \"category\": \"logic\",\n  \"line\": 8,\n  \"issue\": \"The method does not handle an empty list correctly.\",\n  \"suggested_fix\": \"Add a check to ensure that the list is not empty before joining the names.\"\n}\n```"
+      },
+      {
+        "id": "371781a9-d999-46be-bed0-299de6478fa5",
+        "valid": false,
+        "caught": false,
+        "raw_output": "```json\n{\n  \"severity\": \"error\",\n  \"category\": \"design\",\n  \"line\": 3,\n  \"issue\": \"The constructor for the Point class should have a default parameterless constructor.\",\n  \"suggested_fix\": \"Add a default parameterless constructor to the Point class.\"\n}\n```"
+      },
+      {
+        "id": "80374602-c0e4-4683-9096-64882a647836",
+        "valid": false,
+        "caught": false,
+        "raw_output": "```json\n{\n  \"severity\": \"info\",\n  \"category\": \"logic\",\n  \"line\": 3,\n  \"issue\": \"The method `anyMatches` does not handle case sensitivity when using regular expressions.\",\n  \"suggested_fix\": \"Use the `CASE_INSENSITIVE` flag in the `Pattern` constructor to make the search case-insensitive.\"\n}\n```"
+      },
+      {
+        "id": "aa39afa9-2b7f-4f6e-b14b-b5fdae57ce5e",
+        "valid": false,
+        "caught": false,
+        "raw_output": "```json\n{\n  \"severity\": \"warning\",\n  \"category\": \"logic\",\n  \"line\": 3,\n  \"issue\": \"The condition checks if the current time minus the `lastSeenMillis` is greater than 1800000 milliseconds (30 minutes). However, this check does not account for the possibility that the `System.currentTimeMillis()` might be less than `lastSeenMillis`, which could lead to an infinite loop.\",\n  \"suggested_fix\": \"Add a check to ensure that `lastSeenMillis` is not null or negative before performing the subtraction.\"\n}\n```"
+      },
+      {
+        "id": "bb015eff-04f6-4864-861e-d7405650bf79",
+        "valid": false,
+        "caught": false,
+        "raw_output": "```json\n{\n  \"severity\": \"info\",\n  \"category\": \"logic\",\n  \"line\": 3,\n  \"issue\": \"The `formatInvoiceDate` method does not handle null dates gracefully.\",\n  \"suggested_fix\": \"Add a check to ensure that the input date is not null before formatting.\"\n}\n```"
+      },
+      {
+        "id": "425e16e9-1f18-40fd-ab29-cf3742dde5a9",
+        "valid": false,
+        "caught": false,
+        "raw_output": "```json\n{\n  \"severity\": \"error\",\n  \"category\": \"code smell\",\n  \"line\": 3,\n  \"issue\": \"The `getName` method should not modify the original string but return a new uppercase version.\",\n  \"suggested_fix\": \"Create a new method to handle the case conversion.\"\n}\n```"
+      },
+      {
+        "id": "c3cba349-4bdd-490e-ac57-730dbe3bebdd",
+        "valid": false,
+        "caught": false,
+        "raw_output": "```json\n{\n  \"severity\": \"error\",\n  \"category\": \"logic\",\n  \"line\": 3,\n  \"issue\": \"Null check for both parameters is missing.\",\n  \"suggested_fix\": \"Add null checks to ensure both parameters are not null before trimming.\"\n}\n```"
+      },
+      {
+        "id": "c0600d65-3078-4399-8ccf-38d1aff6fead",
+        "valid": false,
+        "caught": false,
+        "raw_output": "```json\n{\n  \"severity\": \"info\",\n  \"category\": \"code smell\",\n  \"line\": 3,\n  \"issue\": \"The method `Get_order` does not handle cases where the `id` is null or empty.\",\n  \"suggested_fix\": \"Add checks to ensure that the `id` is not null or empty before calling `orderRepository.findById(id);`. For example: `if (id != null && !id.isEmpty()) { ... }`\n}\n```"
+      },
+      {
+        "id": "d7996881-e096-4c66-bc40-47133e9743f8",
+        "valid": false,
+        "caught": false,
+        "raw_output": "```json\n{\n  \"severity\": \"error\",\n  \"category\": \"design\",\n  \"line\": 3,\n  \"issue\": \"The `PaymentGateway` interface should have a default implementation to ensure that all implementations provide a way to handle exceptions.\",\n  \"suggested_fix\": \"Add a default implementation for the `charge` method that throws an exception if the payment fails.\"\n}\n```"
+      },
+      {
+        "id": "69a305f1-4ca8-4866-b8c8-ee753e04ea0d",
+        "valid": false,
+        "caught": false,
+        "raw_output": "```json\n{\n  \"severity\": \"error\",\n  \"category\": \"logic\",\n  \"line\": 38,\n  \"issue\": \"The `cookieSpec` is not used to validate the parsed cookies.\",\n  \"suggested_fix\": \"Add a call to `cookieSpec.validate(cookie, cookieOrigin)` after parsing the cookie.\"\n}\n```"
+      },
+      {
+        "id": "d3681ad8-15df-468f-bebc-a3e3c52326a3",
+        "valid": false,
+        "caught": false,
+        "raw_output": "```json\n{\n  \"severity\": \"error\",\n  \"category\": \"logic\",\n  \"line\": 8,\n  \"issue\": \"The `getDialect` method does not handle the case where `dataSource` is `null`.\",\n  \"suggested_fix\": \"Add a check for `dataSource == null` before attempting to get a connection.\"\n}\n```"
+      },
+      {
+        "id": "7ed3e858-08a6-4915-834b-d14f9873abab",
+        "valid": false,
+        "caught": false,
+        "raw_output": "```json\n{\n  \"severity\": \"error\",\n  \"category\": \"logic\",\n  \"line\": 38,\n  \"issue\": \"The `parameters` map should be initialized before the loop that populates it.\",\n  \"suggested_fix\": \"Initialize the `parameters` map before the loop.\"\n}\n```"
+      },
+      {
+        "id": "aa58f474-52eb-479f-a334-3729437592b4",
+        "valid": false,
+        "caught": false,
+        "raw_output": "```json\n{\n  \"severity\": \"error\",\n  \"category\": \"logic\",\n  \"line\": 38,\n  \"issue\": \"The `validateLocalePart` method is called twice for the same parameter.\",\n  \"suggested_fix\": \"Remove the duplicate call to `validateLocalePart`.\"\n}\n```"
+      },
+      {
+        "id": "c7a2180f-88ec-4726-a12e-609984c6aecb",
+        "valid": false,
+        "caught": false,
+        "raw_output": "```json\n{\n  \"severity\": \"error\",\n  \"category\": \"logic\",\n  \"line\": 18,\n  \"issue\": \"The `substringWithTrimmedWhitespaceAndQuotesIfQuotesPresent` method does not handle cases where the input string is empty or contains only whitespace.\",\n  \"suggested_fix\": \"Add checks to ensure that the input string is not empty or contains only whitespace before proceeding with the substring operation.\"\n}\n```"
+      },
+      {
+        "id": "7a57f4df-ca85-4e2d-939c-95e381b1b064",
+        "valid": false,
+        "caught": false,
+        "raw_output": "```json\n{\n  \"severity\": \"error\",\n  \"category\": \"logic\",\n  \"line\": 89,\n  \"issue\": \"The `calendar` variable is not initialized before being used.\",\n  \"suggested_fix\": \"Initialize the `calendar` variable at the beginning of the `transform` method.\"\n}\n```"
+      },
+      {
+        "id": "81d7bbd9-2cdb-44e4-8a7f-abc94a834bb3",
+        "valid": false,
+        "caught": false,
+        "raw_output": "```json\n{\n  \"severity\": \"error\",\n  \"category\": \"logic\",\n  \"line\": 38,\n  \"issue\": \"The loop condition `!rolesToVisitSet.isEmpty()` is incorrect. It should check if `rolesToVisitSet` is not empty to avoid an infinite loop.\",\n  \"suggested_fix\": \"Change the loop condition to `!rolesToVisitSet.isEmpty()`.\"\n}\n```"
+      },
+      {
+        "id": "2b7d1b13-d85b-4ca0-8a6e-48523cce0108",
+        "valid": false,
+        "caught": false,
+        "raw_output": "```json\n{\n  \"severity\": \"error\",\n  \"category\": \"logic\",\n  \"line\": 8,\n  \"issue\": \"The method `getAssignedPartitions` returns an unmodifiable collection of assigned partitions when both `definedPartitions` and `assignedPartitions` are null.\",\n  \"suggested_fix\": \"Check if either `definedPartitions` or `assignedPartitions` is null before returning the unmodifiable collection.\"\n}\n```"
+      },
+      {
+        "id": "f1e7bb61-09bd-4da3-9975-b0962f99e2cb",
+        "valid": false,
+        "caught": false,
+        "raw_output": "```json\n{\n  \"severity\": \"error\",\n  \"category\": \"logic\",\n  \"line\": 8,\n  \"issue\": \"The condition `incrOp.getValue().intValue() > 0` is always true because `incrOp.getValue()` returns an integer value.\",\n  \"suggested_fix\": \"Change the condition to check if the absolute value of `incrOp.getValue()` is greater than zero.\"\n}\n```"
+      },
+      {
+        "id": "2f595c3a-38d7-4c90-bd7b-538dad899000",
+        "valid": false,
+        "caught": false,
+        "raw_output": "```json\n{\n  \"severity\": \"error\",\n  \"category\": \"logic\",\n  \"line\": 38,\n  \"issue\": \"The `if` condition checks if `sessionId` equals `originalSessionId`, but it does not check if `sessionId` is null.\",\n  \"suggested_fix\": \"Add a null check to ensure that `sessionId` is not null before comparing it with `originalSessionId`.\"\n}\n```"
+      }
+    ]
+  },
+  "frontier_api": {
+    "model_tag": "gemini-3.5-flash-lite",
+    "mode": "3-shot",
+    "provider": "gemini",
+    "tier": "free",
+    "input_tokens": 34344,
+    "output_tokens": 3638,
+    "cost_usd": 0.0,
+    "schema_validity_rate": 1.0,
+    "bug_catch_rate": 0.825,
+    "n_samples": 40,
+    "n_valid": 40,
+    "n_caught": 33,
+    "per_sample": [
+      {
+        "id": "8e6a5331-9c16-4d79-895c-418855f848cd",
+        "valid": true,
+        "caught": true,
+        "raw_output": "{\"severity\": \"critical\", \"category\": \"sql-injection\", \"line\": 2, \"issue\": \"String concatenation is used to insert the status parameter directly into the SQL query, enabling SQL injection attacks.\", \"suggested_fix\": \"Use a parameterized query by replacing the concatenated string with a question mark (?) placeholder and passing the status variable as an argument to jdbcTemplate.query.\"}"
+      },
+      {
+        "id": "75eb77e0-5334-4780-9811-4424e358bfff",
+        "valid": true,
+        "caught": true,
+        "raw_output": "{\n  \"severity\": \"critical\",\n  \"category\": \"xxe\",\n  \"line\": 3,\n  \"issue\": \"DocumentBuilderFactory is not configured to disable external entities, allowing XML External Entity (XXE) attacks or XML bomb denial-of-service vulnerabilities.\",\n  \"suggested_fix\": \"Disable external DTDs and schema evaluation by calling factory.setFeature(\\\"http://apache.org/xml/features/disallow-doctype-decl\\\", true) and related secure processing properties before creating the DocumentBuilder.\"\n}"
+      },
+      {
+        "id": "b54e73dc-f1fd-41fd-bc24-2aaf46a98095",
+        "valid": true,
+        "caught": true,
+        "raw_output": "{\n  \"severity\": \"critical\",\n  \"category\": \"hardcoded-secret\",\n  \"line\": 2,\n  \"issue\": \"The SMTP password is hardcoded as a static string field in the source code, exposing sensitive credentials to anyone with read access to the repository or binaries.\",\n  \"suggested_fix\": \"Remove the hardcoded secret and load the password securely from environment variables, a secrets manager, or an external configuration file.\"\n}"
+      },
+      {
+        "id": "19c28ade-3fc4-4c57-b863-44b1b15b8838",
+        "valid": true,
+        "caught": true,
+        "raw_output": "{\"severity\": \"critical\", \"category\": \"insecure-deserialization\", \"line\": 3, \"issue\": \"Deserializing untrusted data with ObjectInputStream allows arbitrary code execution if malicious payloads are provided.\", \"suggested_fix\": \"Avoid Java native deserialization for untrusted data, or implement a custom ObjectInputStream that restricts allowed classes.\"}"
+      },
+      {
+        "id": "250a6361-7dc5-4c11-8c3b-7a0217968cf0",
+        "valid": true,
+        "caught": true,
+        "raw_output": "{\n  \"severity\": \"critical\",\n  \"category\": \"command-injection\",\n  \"line\": 3,\n  \"issue\": \"Passing unsanitized user input directly to Runtime.getRuntime().exec(String) allows an attacker to inject shell metacharacters and execute arbitrary system commands.\",\n  \"suggested_fix\": \"Use the Runtime.getRuntime().exec(String[]) overload and pass the arguments as separate elements in the array to prevent command injection.\"\n}"
+      },
+      {
+        "id": "bd3ff269-310d-43a9-adbb-afde654dbcc0",
+        "valid": true,
+        "caught": true,
+        "raw_output": "{\"severity\": \"major\", \"category\": \"race-condition\", \"line\": 3, \"issue\": \"Checking balance and updating it in separate steps without synchronization allows another thread to withdraw concurrently, leading to an inconsistent balance or overdraft.\", \"suggested_fix\": \"Use synchronized blocks or a thread-safe atomic operation within the Account class to perform the check and subtraction atomically.\"}"
+      },
+      {
+        "id": "d053a06a-26f5-4120-82b6-059ffea8490c",
+        "valid": true,
+        "caught": true,
+        "raw_output": "{\n  \"severity\": \"critical\",\n  \"category\": \"insecure-trust-manager\",\n  \"line\": 2,\n  \"issue\": \"The custom X509TrustManager implementation completely disables certificate validation by leaving checkClientTrusted and checkServerTrusted empty, creating a severe vulnerability to man-in-the-middle attacks.\",\n  \"suggested_fix\": \"Use a standard TrustManager configured with a valid truststore rather than trusting all certificates indiscriminately.\"\n}"
+      },
+      {
+        "id": "ea3d611b-5700-422f-9727-50476894d466",
+        "valid": true,
+        "caught": true,
+        "raw_output": "{\n  \"severity\": \"critical\",\n  \"category\": \"path-traversal\",\n  \"line\": 2,\n  \"issue\": \"userId is concatenated into the path directly without sanitization, allowing path traversal attacks via '..' sequences to read arbitrary files.\",\n  \"suggested_fix\": \"Validate that userId matches an expected safe pattern (e.g., alphanumeric) or use path normalization checks.\"\n}"
+      },
+      {
+        "id": "518fd770-1167-4c73-a72e-e549ebb1c031",
+        "valid": true,
+        "caught": true,
+        "raw_output": "{\n  \"severity\": \"critical\",\n  \"category\": \"null-pointer-dereference\",\n  \"line\": 2,\n  \"issue\": \"Chained method calls on customer.getAddress() and getCity() can throw a NullPointerException if either getAddress() or getCity() returns null.\",\n  \"suggested_fix\": \"Use Optional or add explicit null checks for each getter before invoking methods on them.\"\n}"
+      },
+      {
+        "id": "68c7f5d2-757b-4a1d-a350-99acc2c4f9cd",
+        "valid": true,
+        "caught": true,
+        "raw_output": "{\n  \"severity\": \"major\",\n  \"category\": \"resource-leak\",\n  \"line\": 2,\n  \"issue\": \"BufferedReader and FileReader are opened but never closed, leading to a resource leak.\",\n  \"suggested_fix\": \"Use a try-with-resources statement to ensure the reader is closed automatically.\"\n}"
+      },
+      {
+        "id": "fd743d34-0488-4222-b591-5f7c8508a152",
+        "valid": true,
+        "caught": false,
+        "raw_output": "{\"severity\": \"major\", \"category\": \"missing-hashcode\", \"line\": 5, \"issue\": \"The equals method is overridden without overriding hashCode, which violates the contract between equals and hashCode and breaks collections like HashMap and HashSet.\", \"suggested_fix\": \"Add a hashCode method that returns Objects.hash(value) to maintain the contract.\"}"
+      },
+      {
+        "id": "0d9474a0-9d5f-434a-86c3-21de1316a566",
+        "valid": true,
+        "caught": true,
+        "raw_output": "{\n  \"severity\": \"critical\",\n  \"category\": \"array-index-out-of-bounds\",\n  \"line\": 2,\n  \"issue\": \"The loop condition i <= values.length causes an ArrayIndexOutOfBoundsException on the last iteration because valid indices are 0 to values.length - 1.\",\n  \"suggested_fix\": \"Change the loop condition from i <= values.length to i < values.length, or iterate backwards from values.length - 1 down to 0 to find the last index.\"\n}"
+      },
+      {
+        "id": "8e4303cd-4b06-4f37-ab68-ee0ce18d0330",
+        "valid": true,
+        "caught": true,
+        "raw_output": "{\"severity\": \"major\", \"category\": \"n-plus-one-query\", \"line\": 4, \"issue\": \"Fetching the customer inside a loop for each order results in the N+1 query problem, severely impacting performance.\", \"suggested_fix\": \"Fetch all necessary customers in a single batch query or use a join fetch in the repository layer before processing the loop.\"}"
+      },
+      {
+        "id": "7ad666d5-521c-4eef-a1f3-0cde6b4a27b8",
+        "valid": true,
+        "caught": true,
+        "raw_output": "{\n  \"severity\": \"major\",\n  \"category\": \"missing-transaction\",\n  \"line\": 1,\n  \"issue\": \"Funds transfer involves multiple database updates across accounts without a database transaction, which can lead to data inconsistency if a failure occurs halfway.\",\n  \"suggested_fix\": \"Annotate the method with @Transactional to ensure both account updates execute atomically.\"\n}"
+      },
+      {
+        "id": "f636ab35-05ab-4d28-83c0-fe60613ec4d7",
+        "valid": true,
+        "caught": true,
+        "raw_output": "{\"severity\": \"major\", \"category\": \"thread-safety\", \"line\": 4, \"issue\": \"Lazy initialization of the singleton instance is not thread-safe, which can lead to multiple instances being created under race conditions.\", \"suggested_fix\": \"Use double-checked locking, initialization-on-demand holder idiom, or make getInstance() synchronized.\"}"
+      },
+      {
+        "id": "9fbbb788-6f28-4993-9acc-3d24064834b8",
+        "valid": true,
+        "caught": true,
+        "raw_output": "{\n  \"severity\": \"minor\",\n  \"category\": \"integer-overflow\",\n  \"line\": 2,\n  \"issue\": \"Multiplication and addition on standard 32-bit integers can overflow if the input values are sufficiently large.\",\n  \"suggested_fix\": \"Use Math.multiplyExact and Math.addExact, or change the return type and inputs to long if larger amounts are expected.\"\n}"
+      },
+      {
+        "id": "3b83c425-b932-4cf4-bd5c-2c9f7f77e53a",
+        "valid": true,
+        "caught": true,
+        "raw_output": "{\n  \"severity\": \"major\",\n  \"category\": \"swallowed-exception\",\n  \"line\": 4,\n  \"issue\": \"Catching generic Exception and leaving the catch block empty silences errors and makes debugging processing failures impossible.\",\n  \"suggested_fix\": \"Log the exception using a logger (e.g., logger.error(\\\"Task failed\\\", e)) or rethrow it if task failures should halt processing.\"\n}"
+      },
+      {
+        "id": "4b3d4263-9d35-404c-834b-1a1aee5b7ce5",
+        "valid": true,
+        "caught": true,
+        "raw_output": "{\n  \"severity\": \"major\",\n  \"category\": \"representation-exposure\",\n  \"line\": 3,\n  \"issue\": \"Returning the private mutable list directly allows external callers to modify the internal state of the Cart object.\",\n  \"suggested_fix\": \"Return an unmodifiable view of the list using Collections.unmodifiableList(items) or return a defensive copy.\"\n}"
+      },
+      {
+        "id": "ed166075-8cff-405e-9763-002ea325785f",
+        "valid": true,
+        "caught": true,
+        "raw_output": "{\n  \"severity\": \"critical\",\n  \"category\": \"open-redirect\",\n  \"line\": 2,\n  \"issue\": \"The 'next' parameter is passed directly to resp.sendRedirect without validation, allowing open redirect vulnerabilities.\",\n  \"suggested_fix\": \"Validate that the 'next' URL is a relative path or belongs to a trusted domain before redirecting.\"\n}"
+      },
+      {
+        "id": "e81c6a99-0388-4d96-8f21-19880b7e4400",
+        "valid": true,
+        "caught": true,
+        "raw_output": "{\n  \"severity\": \"critical\",\n  \"category\": \"null-pointer-exception\",\n  \"line\": 2,\n  \"issue\": \"token.isEmpty() is called before checking if token is null, which will throw a NullPointerException if token is null.\",\n  \"suggested_fix\": \"Change the condition to check for null first: return token == null || token.isEmpty();\"\n}"
+      },
+      {
+        "id": "3e575a92-0f36-4855-8f3f-ea26a7b16310",
+        "valid": true,
+        "caught": true,
+        "raw_output": "{\n  \"severity\": \"critical\",\n  \"category\": \"sensitive-data-exposure\",\n  \"line\": 2,\n  \"issue\": \"Plaintext password is being logged at INFO level, exposing sensitive credentials in log files.\",\n  \"suggested_fix\": \"Remove the password parameter from the log statement or mask it before logging.\"\n}"
+      },
+      {
+        "id": "b13744e5-1bde-4883-84bb-716f383b6430",
+        "valid": true,
+        "caught": true,
+        "raw_output": "{\n  \"severity\": \"major\",\n  \"category\": \"string-concatenation-in-loop\",\n  \"line\": 4,\n  \"issue\": \"Using the '+' operator inside a loop creates a new StringBuilder and String object on every iteration, leading to $O(N^2)$ performance for large lists.\",\n  \"suggested_fix\": \"Use a StringBuilder or String.join(\\\", \\\", names) to efficiently concatenate strings.\"\n}"
+      },
+      {
+        "id": "371781a9-d999-46be-bed0-299de6478fa5",
+        "valid": true,
+        "caught": true,
+        "raw_output": "{\n  \"severity\": \"major\",\n  \"category\": \"public-mutable-fields\",\n  \"line\": 2,\n  \"issue\": \"Fields x and y are declared public and mutable, which violates encapsulation principles and allows external code to mutate the internal state directly.\",\n  \"suggested_fix\": \"Make the fields private and provide public getter methods, or make the class immutable by declaring the fields final.\"\n}"
+      },
+      {
+        "id": "80374602-c0e4-4683-9096-64882a647836",
+        "valid": true,
+        "caught": true,
+        "raw_output": "{\n  \"severity\": \"major\",\n  \"category\": \"performance\",\n  \"line\": 3,\n  \"issue\": \"Pattern.compile(pattern) is executed inside the loop on every iteration, causing severe performance degradation for large lists.\",\n  \"suggested_fix\": \"Compile the Pattern once outside the loop using Pattern.compile(pattern) and reuse the matcher inside.\"\n}"
+      },
+      {
+        "id": "aa39afa9-2b7f-4f6e-b14b-b5fdae57ce5e",
+        "valid": true,
+        "caught": true,
+        "raw_output": "{\n  \"severity\": \"minor\",\n  \"category\": \"magic-number\",\n  \"line\": 2,\n  \"issue\": \"The timeout duration 1800000 is a magic number which makes the code harder to read and maintain.\",\n  \"suggested_fix\": \"Extract the value into a well-named constant, such as private static final long SESSION_TIMEOUT_MS = 1800000L;\"\n}"
+      },
+      {
+        "id": "bb015eff-04f6-4864-861e-d7405650bf79",
+        "valid": true,
+        "caught": true,
+        "raw_output": "{\n  \"severity\": \"major\",\n  \"category\": \"thread-safety\",\n  \"line\": 2,\n  \"issue\": \"SimpleDateFormat is not thread-safe, and instantiating it inside a frequently called method can cause high memory churn and performance degradation.\",\n  \"suggested_fix\": \"Extract the SimpleDateFormat instance to a thread-safe holder like ThreadLocal, or use the modern java.time API (DateTimeFormatter) which is immutable and thread-safe.\"\n}"
+      },
+      {
+        "id": "425e16e9-1f18-40fd-ab29-cf3742dde5a9",
+        "valid": true,
+        "caught": true,
+        "raw_output": "{\"severity\": \"major\", \"category\": \"liskov-substitution-violation\", \"line\": 3, \"issue\": \"getName() can return null if super.getName() is null, causing a NullPointerException when calling toUpperCase() on it.\", \"suggested_fix\": \"Add a null check before calling toUpperCase(), such as return super.getName() == null ? null : super.getName().toUpperCase();\"}"
+      },
+      {
+        "id": "c3cba349-4bdd-490e-ac57-730dbe3bebdd",
+        "valid": true,
+        "caught": true,
+        "raw_output": "{\n  \"severity\": \"minor\",\n  \"category\": \"redundant-condition\",\n  \"line\": 2,\n  \"issue\": \"The condition 'value != null' is duplicated using the logical AND operator, which is redundant.\",\n  \"suggested_fix\": \"Simplify the condition to check 'value != null' only once.\"\n}"
+      },
+      {
+        "id": "c0600d65-3078-4399-8ccf-38d1aff6fead",
+        "valid": true,
+        "caught": true,
+        "raw_output": "{\n  \"severity\": \"minor\",\n  \"category\": \"naming-convention\",\n  \"line\": 2,\n  \"issue\": \"Method name 'Get_order' uses snake_case and starts with an uppercase letter, violating standard Java naming conventions (camelCase).\",\n  \"suggested_fix\": \"Rename the method to 'getOrder' to follow standard Java naming conventions.\"\n}"
+      },
+      {
+        "id": "d7996881-e096-4c66-bc40-47133e9743f8",
+        "valid": true,
+        "caught": true,
+        "raw_output": "{\n  \"severity\": \"info\",\n  \"category\": \"interface-design\",\n  \"line\": 1,\n  \"issue\": \"The PaymentGateway interface lacks documentation regarding whether null parameters are permitted or if amounts must be positive.\",\n  \"suggested_fix\": \"Add Javadoc comments specifying constraints on cardToken and amount, and consider adding validation annotations or runtime checks.\"\n}"
+      },
+      {
+        "id": "69a305f1-4ca8-4866-b8c8-ee753e04ea0d",
+        "valid": true,
+        "caught": false,
+        "raw_output": "{\n  \"severity\": \"minor\",\n  \"category\": \"swallowed-exception\",\n  \"line\": 31,\n  \"issue\": \"MalformedCookieException is caught and silently ignored without logging, making it difficult to debug why certain cookies are missing.\",\n  \"suggested_fix\": \"Log the MalformedCookieException at a debug level so that cookie parsing or validation issues are observable during troubleshooting.\"\n}"
+      },
+      {
+        "id": "d3681ad8-15df-468f-bebc-a3e3c52326a3",
+        "valid": true,
+        "caught": true,
+        "raw_output": "{\n  \"severity\": \"critical\",\n  \"category\": \"resource-leak\",\n  \"line\": 3,\n  \"issue\": \"The Connection object obtained from dataSource.getConnection() is never closed, leading to a potential database connection leak.\",\n  \"suggested_fix\": \"Use a try-with-resources statement to ensure the Connection is automatically closed.\"\n}"
+      },
+      {
+        "id": "7ed3e858-08a6-4915-834b-d14f9873abab",
+        "valid": true,
+        "caught": false,
+        "raw_output": "{\"severity\": \"major\", \"category\": \"potential-string-index-out-of-bounds\", \"line\": 28, \"issue\": \"Accessing mimeType.charAt(nextIndex - 1) when nextIndex equals index + 1 and index is -1 results in IndexOutOfBoundsException.\", \"suggested_fix\": \"Ensure that index is updated correctly or check that nextIndex - 1 is greater than or equal to 0 before accessing the character.\"}"
+      },
+      {
+        "id": "aa58f474-52eb-479f-a334-3729437592b4",
+        "valid": true,
+        "caught": true,
+        "raw_output": "{\n  \"severity\": \"major\",\n  \"category\": \"incorrect-logic\",\n  \"line\": 9,\n  \"issue\": \"The condition parts.length >= 2 checks if there is at least a language and country, but the comment implies it was intended to check for a third part (the variant). Using parts.length >= 2 means country and variant logic overlap or get confused.\",\n  \"suggested_fix\": \"Change the condition to check parts.length >= 3 if the variant is expected to be the third token in the split array.\"\n}"
+      },
+      {
+        "id": "c7a2180f-88ec-4726-a12e-609984c6aecb",
+        "valid": true,
+        "caught": false,
+        "raw_output": "{\n  \"severity\": \"major\",\n  \"category\": \"logic-error\",\n  \"line\": 15,\n  \"issue\": \"The fallback branch returns new String(chars, offset, count) instead of the trimmed string without quotes.\",\n  \"suggested_fix\": \"Return new String(chars, start, len) in the else branch, or define value based on the trimmed start and len.\"\n}"
+      },
+      {
+        "id": "7a57f4df-ca85-4e2d-939c-95e381b1b064",
+        "valid": true,
+        "caught": true,
+        "raw_output": "{\"severity\": \"critical\", \"category\": \"thread-safety\", \"line\": 2, \"issue\": \"SimpleDateFormat is not thread-safe, and since this transformer instance is likely shared across multiple threads, concurrent calls to dateFormat.parse() can lead to corrupted parse results or runtime exceptions.\", \"suggested_fix\": \"Use ThreadLocal<SimpleDateFormat> or Java 8 java.time.format.DateTimeFormatter instead of a shared instance field.\"}"
+      },
+      {
+        "id": "81d7bbd9-2cdb-44e4-8a7f-abc94a834bb3",
+        "valid": true,
+        "caught": false,
+        "raw_output": "{\n  \"severity\": \"critical\",\n  \"category\": \"infinite-loop\",\n  \"line\": 14,\n  \"issue\": \"When a role is already present in visitedRolesSet, it is still added to rolesToVisitSet via newReachableRoles, causing an infinite loop because visitedRolesSet checks happen only after popping and cycles are not correctly pruned.\",\n  \"suggested_fix\": \"Check if a role has already been visited before adding it to rolesToVisitSet or processing it, by maintaining a global or per-traversal visited set.\"\n}"
+      },
+      {
+        "id": "2b7d1b13-d85b-4ca0-8a6e-48523cce0108",
+        "valid": true,
+        "caught": false,
+        "raw_output": "{\"severity\": \"minor\", \"category\": \"null-return\", \"line\": 10, \"issue\": \"The method returns null when the listenerConsumer or its partition collections are not initialized, which can cause NullPointerException in callers expecting a collection.\", \"suggested_fix\": \"Return Collections.emptyList() instead of null to prevent NullPointerException for callers.\"}"
+      },
+      {
+        "id": "f1e7bb61-09bd-4da3-9975-b0962f99e2cb",
+        "valid": true,
+        "caught": true,
+        "raw_output": "{\"severity\": \"minor\", \"category\": \"redundant-method-calls\", \"line\": 3, \"issue\": \"incrOp.getValue().intValue() is evaluated multiple times redundantly across the conditional and method calls.\", \"suggested_fix\": \"Store the int value in a local variable before the conditional expression to improve readability and avoid duplicate method calls.\"}"
+      },
+      {
+        "id": "2f595c3a-38d7-4c90-bd7b-538dad899000",
+        "valid": true,
+        "caught": false,
+        "raw_output": "{\n  \"severity\": \"major\",\n  \"category\": \"null-pointer-exception\",\n  \"line\": 3,\n  \"issue\": \"Calling equals on this.originalSessionId can throw a NullPointerException if originalSessionId is null.\",\n  \"suggested_fix\": \"Use Objects.equals(sessionId, this.originalSessionId) or check for null before invoking equals.\"\n}"
+      }
+    ]
+  }
+}

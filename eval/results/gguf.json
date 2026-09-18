@@ -1,0 +1,249 @@
+{
+  "schema_validity_rate": 1.0,
+  "bug_catch_rate": 0.8,
+  "n_samples": 40,
+  "n_valid": 40,
+  "n_caught": 32,
+  "per_sample": [
+    {
+      "id": "8e6a5331-9c16-4d79-895c-418855f848cd",
+      "valid": true,
+      "caught": true,
+      "raw_output": "{\"severity\": \"major\", \"category\": \"SQL Injection Vulnerability\", \"line\": 3, \"issue\": \"The SQL query is constructed using a hardcoded string parameter instead of using a parameterized query, which makes it vulnerable to SQL injection attacks.\", \"suggested_fix\": \"Use the JDBC template's `queryForObject` or `queryForList` method with a `PreparedStatementBuilder` to safely parameterize the query variable.\"}"
+    },
+    {
+      "id": "75eb77e0-5334-4780-9811-4424e358bfff",
+      "valid": true,
+      "caught": true,
+      "raw_output": "{\"severity\": \"critical\", \"category\": \"NullPointerException\", \"line\": 3, \"issue\": \"The method expects an InputStream but passes a generic Object instead, which can cause a NullPointerException if the input is not an InputStream.\", \"suggested_fix\": \"Change the method parameter to accept InputStream or use a type-safe generic parameter like <InputStream>.\"}"
+    },
+    {
+      "id": "b54e73dc-f1fd-41fd-bc24-2aaf46a98095",
+      "valid": true,
+      "caught": true,
+      "raw_output": "{\"severity\": \"critical\", \"category\": \"Insecure Hardcoded Password\", \"line\": 3, \"issue\": \"The SMTP_PASSWORD constant is hardcoded as 'Summer2023!' which exposes the password in source code and is vulnerable to exposure through version control or other means.\", \"suggested_fix\": \"Replace 'Summer2023!' with a secure environment variable or configuration file that is not exposed in the source code.\"}"
+    },
+    {
+      "id": "19c28ade-3fc4-4c57-b863-44b1b15b8838",
+      "valid": true,
+      "caught": true,
+      "raw_output": "{\"severity\": \"major\", \"category\": \"Null Pointer Exception\", \"line\": 3, \"issue\": \"The ByteArrayInputStream is not initialized with the data array before passing it to the ObjectInputStream constructor, which can lead to a NullPointerException if the data array is null.\", \"suggested_fix\": \"Initialize the ByteArrayInputStream with the data array before passing it to the ObjectInputStream constructor: new ObjectInputStream(new ByteArrayInputStream(data));\"}"
+    },
+    {
+      "id": "250a6361-7dc5-4c11-8c3b-7a0217968cf0",
+      "valid": true,
+      "caught": true,
+      "raw_output": "{\"severity\": \"major\", \"category\": \"Incorrect Command Construction\", \"line\": 3, \"issue\": \"The command is constructed with a hardcoded filename instead of the passed parameter, which will fail if the filename is not 'input.jpg'.\", \"suggested_fix\": \"Replace 'filename' with the variable 'cmd' in the exec method call.\"}"
+    },
+    {
+      "id": "bd3ff269-310d-43a9-adbb-afde654dbcc0",
+      "valid": true,
+      "caught": true,
+      "raw_output": "{\"severity\": \"major\", \"category\": \"Race Condition\", \"line\": 3, \"issue\": \"The method checks if the account balance is sufficient before attempting to withdraw, but another thread could withdraw the funds between the check and the update, leading to a race condition where the account balance is incorrectly reduced.\", \"suggested_fix\": \"Use a synchronized block or method to ensure that the balance update is atomic with the check.\"}"
+    },
+    {
+      "id": "d053a06a-26f5-4120-82b6-059ffea8490c",
+      "valid": true,
+      "caught": true,
+      "raw_output": "{\"severity\": \"critical\", \"category\": \"Security Vulnerability\", \"line\": 4, \"issue\": \"The trustAllContext method initializes the SSLContext with a null key manager, allowing any certificate to be trusted, which is a severe security risk.\", \"suggested_fix\": \"Replace null with the appropriate key manager, such as TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm()).getTrustManagers().\"}"
+    },
+    {
+      "id": "ea3d611b-5700-422f-9727-50476894d466",
+      "valid": true,
+      "caught": true,
+      "raw_output": "{\"severity\": \"major\", \"category\": \"Incorrect File Path\", \"line\": 2, \"issue\": \"The file path is hardcoded to use a fixed directory and file name, which will not work for different users or environments.\", \"suggested_fix\": \"Use a variable or a configuration property to dynamically construct the file path based on the userId parameter.\"}"
+    },
+    {
+      "id": "518fd770-1167-4c73-a72e-e549ebb1c031",
+      "valid": true,
+      "caught": true,
+      "raw_output": "{\"severity\": \"critical\", \"category\": \"Logic Error\", \"line\": 2, \"issue\": \"The method returns the uppercase version of the city instead of the full address.\", \"suggested_fix\": \"Change customer.getAddress().getCity().toUpperCase() to customer.getAddress().getFullAddress().toUpperCase().\"}"
+    },
+    {
+      "id": "68c7f5d2-757b-4a1d-a350-99acc2c4f9cd",
+      "valid": true,
+      "caught": true,
+      "raw_output": "{\"severity\": \"major\", \"category\": \"Incorrect Exception Handling\", \"line\": 3, \"issue\": \"The method throws IOException but does not catch it, allowing the exception to propagate up the call stack.\", \"suggested_fix\": \"Add a try-catch block around the reader.readLine() call to handle IOExceptions properly.\"}"
+    },
+    {
+      "id": "fd743d34-0488-4222-b591-5f7c8508a152",
+      "valid": true,
+      "caught": false,
+      "raw_output": "{\"severity\": \"major\", \"category\": \"Incorrect Equality Check\", \"line\": 5, \"issue\": \"The equals method compares the value field directly, ignoring the object type check, which violates the general contract of the equals method.\", \"suggested_fix\": \"Change the comparison to check if the object is an instance of OrderId and then compare the values, or use the Object.equals method which correctly handles type checking.\"}"
+    },
+    {
+      "id": "0d9474a0-9d5f-434a-86c3-21de1316a566",
+      "valid": true,
+      "caught": true,
+      "raw_output": "{\"severity\": \"major\", \"category\": \"Logic Error\", \"line\": 3, \"issue\": \"The loop condition is i <= values.length, which will cause an ArrayIndexOutOfBoundsException when i equals values.length.\", \"suggested_fix\": \"Change the loop condition to i < values.length to avoid the out-of-bounds error.\"}"
+    },
+    {
+      "id": "8e4303cd-4b06-4f37-ab68-ee0ce18d0330",
+      "valid": true,
+      "caught": true,
+      "raw_output": "{\"severity\": \"major\", \"category\": \"Logic Error\", \"line\": 4, \"issue\": \"The code attempts to retrieve the customer name using the repository method with the order's customer ID, but it uses the repository method with the order object instead, which will throw a NullPointerException if the order object does not have a customer ID.\", \"suggested_fix\": \"Change order.getCustomerId() to order.getId() in the repository call.\"}"
+    },
+    {
+      "id": "7ad666d5-521c-4eef-a1f3-0cde6b4a27b8",
+      "valid": true,
+      "caught": true,
+      "raw_output": "{\"severity\": \"major\", \"category\": \"Logic Error\", \"line\": 3, \"issue\": \"The method subtracts the amount from the from account balance and then saves the updated account before adding the amount to the to account balance, which reverses the transfer.\", \"suggested_fix\": \"Change the order of the balance updates to save the from account first and then the to account.\"}"
+    },
+    {
+      "id": "f636ab35-05ab-4d28-83c0-fe60613ec4d7",
+      "valid": true,
+      "caught": true,
+      "raw_output": "{\"severity\": \"critical\", \"category\": \"Static Initialization Block\", \"line\": 3, \"issue\": \"The static initialization block inside the getInstance method will be executed every time the class is loaded, leading to redundant object creation and potential performance issues.\", \"suggested_fix\": \"Move the instance initialization outside the static method to ensure it is only executed once when the class is loaded.\"}"
+    },
+    {
+      "id": "9fbbb788-6f28-4993-9acc-3d24064834b8",
+      "valid": true,
+      "caught": true,
+      "raw_output": "{\"severity\": \"major\", \"category\": \"Type Mismatch\", \"line\": 2, \"issue\": \"The method expects two integers but is receiving two parameters of different types, causing a compile-time error.\", \"suggested_fix\": \"Change the method signature to accept two integers: public int totalCents(int dollars, int cents).\"}"
+    },
+    {
+      "id": "3b83c425-b932-4cf4-bd5c-2c9f7f77e53a",
+      "valid": true,
+      "caught": true,
+      "raw_output": "{\"severity\": \"major\", \"category\": \"Resource Leak\", \"line\": 3, \"issue\": \"The catch block catches all exceptions but does not rethrow them, allowing the exception to propagate and potentially cause the queue to be left in an inconsistent state or cause the application to crash.\", \"suggested_fix\": \"Change the catch block to rethrow the exception: catch (Exception e) { throw e; }\"}"
+    },
+    {
+      "id": "4b3d4263-9d35-404c-834b-1a1aee5b7ce5",
+      "valid": true,
+      "caught": true,
+      "raw_output": "{\"severity\": \"major\", \"category\": \"Incorrect Accessor\", \"line\": 4, \"issue\": \"The public getter method returns a reference to the private list variable, allowing direct modification of the internal state from outside the class.\", \"suggested_fix\": \"Change the public getter method to return a copy of the list or use a protected or package-private getter that returns a defensive copy.\"}"
+    },
+    {
+      "id": "ed166075-8cff-405e-9763-002ea325785f",
+      "valid": true,
+      "caught": true,
+      "raw_output": "{\"severity\": \"critical\", \"category\": \"Incorrect Redirect Target\", \"line\": 3, \"issue\": \"The method redirects to the 'next' parameter without checking if it is a valid URL or if the response object is properly configured to handle redirects.\", \"suggested_fix\": \"Validate the 'next' parameter and ensure the response object is configured to handle redirects before calling resp.sendRedirect(next);\"}"
+    },
+    {
+      "id": "e81c6a99-0388-4d96-8f21-19880b7e4400",
+      "valid": true,
+      "caught": true,
+      "raw_output": "{\"severity\": \"critical\", \"category\": \"Logic Error\", \"line\": 2, \"issue\": \"The method checks if the token is empty or null, which incorrectly considers an empty string or null as expired.\", \"suggested_fix\": \"Change the condition to check if the token is null or empty: token == null || token.isEmpty().\"}"
+    },
+    {
+      "id": "3e575a92-0f36-4855-8f3f-ea26a7b16310",
+      "valid": true,
+      "caught": true,
+      "raw_output": "{\"severity\": \"major\", \"category\": \"Incorrect Logging\", \"line\": 2, \"issue\": \"The login method logs the username and password directly without masking them, which can expose sensitive information.\", \"suggested_fix\": \"Use a logging framework that supports masking sensitive data, such as log4j or SLF4J with a custom logger that masks the password before logging.\"}"
+    },
+    {
+      "id": "b13744e5-1bde-4883-84bb-716f383b6430",
+      "valid": true,
+      "caught": true,
+      "raw_output": "{\"severity\": \"major\", \"category\": \"Incorrect Trailing Comma\", \"line\": 4, \"issue\": \"The trailing comma in the for loop concatenation causes the last name to be omitted from the result.\", \"suggested_fix\": \"Remove the trailing comma from the concatenation expression inside the for loop.\"}"
+    },
+    {
+      "id": "371781a9-d999-46be-bed0-299de6478fa5",
+      "valid": true,
+      "caught": true,
+      "raw_output": "{\"severity\": \"major\", \"category\": \"Incorrect Constructor Parameter\", \"line\": 3, \"issue\": \"The constructor parameter names 'x' and 'y' are reversed compared to the instance variables 'this.x' and 'this.y'. This will cause a compilation error if the constructor is called with the wrong arguments.\", \"suggested_fix\": \"Change the constructor parameter names to match the instance variables: public Point(int x, int y) { this.x = x; this.y = y; }\"}"
+    },
+    {
+      "id": "80374602-c0e4-4683-9096-64882a647836",
+      "valid": true,
+      "caught": true,
+      "raw_output": "{\"severity\": \"major\", \"category\": \"Logic Error\", \"line\": 4, \"issue\": \"The method returns true as soon as a match is found, ignoring the remaining values in the list.\", \"suggested_fix\": \"Change the return statement to return true after the first match is found or remove the return statement entirely if the method should return true if any value matches the pattern.\"}"
+    },
+    {
+      "id": "aa39afa9-2b7f-4f6e-b14b-b5fdae57ce5e",
+      "valid": true,
+      "caught": true,
+      "raw_output": "{\"severity\": \"major\", \"category\": \"Logic Error\", \"line\": 2, \"issue\": \"The method checks if the session has expired by comparing the current time with the last seen timestamp, but it uses a hardcoded expiration time of 1800000 milliseconds (30 minutes) instead of the parameter passed in.\", \"suggested_fix\": \"Change the hardcoded expiration time to the parameter lastSeenMillis.\"}"
+    },
+    {
+      "id": "bb015eff-04f6-4864-861e-d7405650bf79",
+      "valid": true,
+      "caught": true,
+      "raw_output": "{\"severity\": \"major\", \"category\": \"Incorrect Date Format\", \"line\": 3, \"issue\": \"The SimpleDateFormat pattern 'MMM dd, yyyy' is incorrect for the month abbreviation 'MMM' and the day of the month 'dd'. It should be 'MM dd, yyyy' for the correct month abbreviation and day of the month format.\", \"suggested_fix\": \"Change 'MMM dd, yyyy' to 'MM dd, yyyy' in the SimpleDateFormat constructor.\"}"
+    },
+    {
+      "id": "425e16e9-1f18-40fd-ab29-cf3742dde5a9",
+      "valid": true,
+      "caught": true,
+      "raw_output": "{\"severity\": \"major\", \"category\": \"Incorrect Method Call\", \"line\": 3, \"issue\": \"The getName() method is called on the superclass User instead of the superclass UppercaseUser, which will return the superclass's name instead of the overridden method.\", \"suggested_fix\": \"Change super.getName() to UppercaseUser.super.getName() to correctly call the overridden getName() method.\"}"
+    },
+    {
+      "id": "c3cba349-4bdd-490e-ac57-730dbe3bebdd",
+      "valid": true,
+      "caught": true,
+      "raw_output": "{\"severity\": \"major\", \"category\": \"Logic Error\", \"line\": 3, \"issue\": \"The condition checks if both parameters are not null, which is incorrect and will always return an empty string if either parameter is null.\", \"suggested_fix\": \"Change the condition to check if either parameter is null or both are null: if (value == null || value.isEmpty()).\"}"
+    },
+    {
+      "id": "c0600d65-3078-4399-8ccf-38d1aff6fead",
+      "valid": true,
+      "caught": true,
+      "raw_output": "{\"severity\": \"critical\", \"category\": \"NullPointerException\", \"line\": 3, \"issue\": \"The findById method from the orderRepository is called without checking if the id parameter is null, which can lead to a NullPointerException if the id is null.\", \"suggested_fix\": \"Add a null check before calling findById, like this: public Order Get_order(String id) { if (id == null) throw new IllegalArgumentException(\\\"Order id cannot be null\\\"); return orderRepository.findById(id); }\"}"
+    },
+    {
+      "id": "d7996881-e096-4c66-bc40-47133e9743f8",
+      "valid": true,
+      "caught": true,
+      "raw_output": "{\"severity\": \"critical\", \"category\": \"Incorrect Method Signature\", \"line\": 2, \"issue\": \"The method signature declares charge with a return type of PaymentResult, but the method body does not return a PaymentResult instance, violating the contract.\", \"suggested_fix\": \"Change the method body to return a PaymentResult instance, e.g., return new PaymentResult(PaymentStatus.SUCCESS, \\\"Payment successful\\\");\"}"
+    },
+    {
+      "id": "69a305f1-4ca8-4866-b8c8-ee753e04ea0d",
+      "valid": true,
+      "caught": false,
+      "raw_output": "{\"severity\": \"major\", \"category\": \"Logic Error\", \"line\": 21, \"issue\": \"The inner try-catch block catches MalformedCookieException instead of the expected IOException, which will prevent the cookie from being added to the result map if it is malformed.\", \"suggested_fix\": \"Change the inner catch block to catch IOException: catch (final IOException ex) { // ignore invalid cookie }\"}"
+    },
+    {
+      "id": "d3681ad8-15df-468f-bebc-a3e3c52326a3",
+      "valid": true,
+      "caught": true,
+      "raw_output": "{\"severity\": \"major\", \"category\": \"Null Pointer Exception\", \"line\": 3, \"issue\": \"The method attempts to call getConnection() on the dataSource variable, which may be null if the dataSource parameter is null, leading to a NullPointerException.\", \"suggested_fix\": \"Add a null check for the dataSource parameter before calling getConnection().\"}"
+    },
+    {
+      "id": "7ed3e858-08a6-4915-834b-d14f9873abab",
+      "valid": true,
+      "caught": false,
+      "raw_output": "{\"severity\": \"critical\", \"category\": \"NullPointerException\", \"line\": 11, \"issue\": \"The method assumes that the 'parameters' map will never be null, but it is initialized only if it is null, leading to a NullPointerException if the map is accessed before initialization.\", \"suggested_fix\": \"Initialize the 'parameters' map before using it or add a null check before accessing it.\"}"
+    },
+    {
+      "id": "aa58f474-52eb-479f-a334-3729437592b4",
+      "valid": true,
+      "caught": false,
+      "raw_output": "{\"severity\": \"major\", \"category\": \"Incorrect Argument Handling\", \"line\": 11, \"issue\": \"The method incorrectly uses the index of the country code to determine the end of the variant, which can lead to incorrect parsing if the country code is at the end of the string or if there is no variant.\", \"suggested_fix\": \"Change the endIndexOfCountryCode calculation to use localeString.indexOf('_', endIndexOfCountryCode) instead of localeString.lastIndexOf(country) + country.length(). This ensures that the variant is correctly extracted from the string.\"}"
+    },
+    {
+      "id": "c7a2180f-88ec-4726-a12e-609984c6aecb",
+      "valid": true,
+      "caught": false,
+      "raw_output": "{\"severity\": \"critical\", \"category\": \"Logic Error\", \"line\": 11, \"issue\": \"The condition for trimming trailing whitespace is incorrect. It checks if the last character is a space, but it should check if the second-to-last character is a space to properly trim the trailing quote characters.\", \"suggested_fix\": \"Change the condition from `chars[start + len - 1] <= ' '` to `chars[start + len - 2] <= ' '`.\"}"
+    },
+    {
+      "id": "7a57f4df-ca85-4e2d-939c-95e381b1b064",
+      "valid": true,
+      "caught": false,
+      "raw_output": "{\"severity\": \"critical\", \"category\": \"NullPointerException\", \"line\": 11, \"issue\": \"The dateFormat variable is not initialized before use, which will cause a NullPointerException if the SimpleDateFormat instance is accessed before the pattern matcher is set up.\", \"suggested_fix\": \"Initialize the dateFormat variable with new SimpleDateFormat(\\\"MMM dd HH:mm:ss\\\"); before using it.\"}"
+    },
+    {
+      "id": "81d7bbd9-2cdb-44e4-8a7f-abc94a834bb3",
+      "valid": true,
+      "caught": false,
+      "raw_output": "{\"severity\": \"critical\", \"category\": \"Logic Error\", \"line\": 4, \"issue\": \"The loop iterates over all higher roles from rolesReachableInOneStepMap, but the condition is inverted to check if the map contains the current role instead of checking if the map contains the roles reachable from the current role.\", \"suggested_fix\": \"Change the condition from `if (this.rolesReachableInOneStepMap.containsKey(role))` to `if (this.rolesReachableInOneStepMap.containsKey(rolesToVisitSet.iterator().next()))`.\"}"
+    },
+    {
+      "id": "2b7d1b13-d85b-4ca0-8a6e-48523cce0108",
+      "valid": true,
+      "caught": true,
+      "raw_output": "{\"severity\": \"critical\", \"category\": \"Null Pointer Exception\", \"line\": 4, \"issue\": \"The method checks if the listener consumer is defined before accessing its properties, but it does not handle the case where the listener consumer is null or the definedPartitions or assignedPartitions fields are null.\", \"suggested_fix\": \"Add null checks for the listener consumer and its properties before accessing them to prevent a NullPointerException.\"}"
+    },
+    {
+      "id": "f1e7bb61-09bd-4da3-9975-b0962f99e2cb",
+      "valid": true,
+      "caught": true,
+      "raw_output": "{\"severity\": \"major\", \"category\": \"Logic Error\", \"line\": 3, \"issue\": \"The condition checks if the value is positive, but the assignment logic is inverted. It should be assignment.increment if the value is positive and assignment.decrement if the value is negative.\", \"suggested_fix\": \"Change the comparison operator from '>' to '<=' in the condition.\"}"
+    },
+    {
+      "id": "2f595c3a-38d7-4c90-bd7b-538dad899000",
+      "valid": true,
+      "caught": false,
+      "raw_output": "{\"severity\": \"major\", \"category\": \"Logic Error\", \"line\": 11, \"issue\": \"The condition checks if the session ID is equal to the original session ID, but it does not check if the session is new before attempting to rename the expired keys and removing the original principal from the set.\", \"suggested_fix\": \"Change the condition to check if the session is new before renaming the expired keys and removing the original principal from the set.\"}"
+    }
+  ]
+}

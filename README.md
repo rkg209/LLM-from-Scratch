@@ -22,7 +22,7 @@ What exists instead:
   (Q4_K_M, 986 MB).
 - **One command runs the whole service anywhere Docker runs.** The container downloads that
   GGUF, verifies its sha256 and serves the API. See [Run it locally with Docker](#run-it-locally-with-docker).
-- **A temporary public link for live demos:** `cloudflared tunnel --url http://localhost:8000`
+- **A temporary public link for live demos:** `cloudflared tunnel --protocol http2 --url http://localhost:8000`
   in front of the running container. It lives only as long as the laptop runs it.
 - **Serving numbers measured on the production image**, limited to free-tier-sized resources
   (below).
@@ -351,7 +351,7 @@ docker run --cpus=2 --memory=4g -p 8000:8000 \
 
 That is exactly how the serving numbers above were measured. Add `--platform linux/amd64` to
 the build when the image is for an x86 host; a native build is faster to run on Apple Silicon.
-To share it temporarily, run `cloudflared tunnel --url http://localhost:8000` in a second
+To share it temporarily, run `cloudflared tunnel --protocol http2 --url http://localhost:8000` in a second
 terminal; it prints a public `https://….trycloudflare.com` URL.
 
 First boot is slow — the model download happens before `/health` reports ready. To run against the committed CI fixture instead of a real model (no network needed beyond the build):

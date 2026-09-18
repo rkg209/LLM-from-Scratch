@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import importlib.util
 import io
+import json
 import sys
 import urllib.error
 from pathlib import Path
@@ -115,3 +116,6 @@ def test_main_writes_the_results_file(tmp_path: Path, monkeypatch: pytest.Monkey
     benchmark_serving.main()
 
     assert results_path.exists()
+    written = json.loads(results_path.read_text())
+    assert written["url"] == "http://example.test"
+    assert written["measured_at"].endswith("+00:00")

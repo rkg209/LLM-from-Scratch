@@ -12,11 +12,20 @@ The chapters share a narrative, not a model. Chapter 1 proves understanding on a
 
 ## Live demo
 
-*(pending — O5 deploy)* The HF Spaces link and a worked example go here once the Space is
-live — see `docs/DEPLOY.md` and `specs/STATUS.md` for exactly what's blocking it (a real
-GGUF from the O1 export and a human decision to publish a public URL). Until then, the
-same request the live demo will accept is runnable locally — see [API](#api) below for
-the full Java-in/JSON-out example against `uv run python -m ch3_operation.serve`.
+**Not permanently hosted, and why.** The plan was a free CPU Hugging Face Space. In 2026 HF
+moved Docker Spaces behind a paid plan (`402 Payment Required` on create), and the free Docker
+hosts that remain (Render, Koyeb) give 512 MB of RAM, while this service needs about 1.15 GiB.
+This project has no hosting budget, so there is no always-on URL.
+
+What exists instead:
+- **The model is public:** [`rkg209/qwen2.5-coder-1.5b-java-review-gguf`](https://huggingface.co/rkg209/qwen2.5-coder-1.5b-java-review-gguf)
+  (Q4_K_M, 986 MB).
+- **One command runs the whole service anywhere Docker runs.** The container downloads that
+  GGUF, verifies its sha256 and serves the API. See [Run it locally with Docker](#run-it-locally-with-docker).
+- **A temporary public link for live demos:** `cloudflared tunnel --url http://localhost:8000`
+  in front of the running container. It lives only as long as the laptop runs it.
+- **Serving numbers measured on the production image**, limited to free-tier-sized resources
+  (below).
 
 ## Architecture
 
@@ -207,10 +216,34 @@ quantization mode, the perplexity cost that speed buys (see
 [`docs/quantization.md`](docs/quantization.md)), and the KV-cache speedup against decode
 length.
 
-**Chapter 3 — serving** *(spec O3, numbers filled in by O5 against the live deployment)*
+**Chapter 3 — serving** *(specs O1/O3/O5)*
+
+The quantized model loses nothing measurable against the adapter on the same 40-record
+holdout:
+
+| Model | Schema-validity | Bug-catch | Size |
+|---|---|---|---|
+| Fine-tuned adapter (HF, 4-bit) | 0.975 | 0.80 | — |
+| **Q4_K_M GGUF (llama.cpp, CPU)** | **1.00** | **0.80** | **986 MB** |
+
+At n = 40 the one-record difference is noise, so read it as "no measured loss", not a gain.
 
 <!-- SERVING_METRICS_START -->
-*(p50/p99 latency, throughput, live link — filled by `scripts/benchmark_serving.py` against the deployed Space, not a laptop)*
+| Metric | Value |
+|---|---|
+| p50 latency | **2.97 s** |
+| p99 latency | **4.64 s** |
+| Throughput (sequential, one user) | **0.32 req/s** |
+| Errors | 0 / 30 |
+| Cold start (image start → download + sha256 check → ready) | 189 s |
+| Memory in use | 1.15 GiB |
+
+Measured 2026-09-18 20:46 UTC by `scripts/benchmark_serving.py` (30 requests after one warm-up),
+against the **production image** run with `docker run --cpus=2 --memory=4g`, the size of a
+free CPU tier. That is a laptop (Apple M4, native arm64 build), not a hosted deployment; there
+is no hosted deployment (see [Live demo](#live-demo)). Throughput misses NFR-3's 1 req/s target
+by about 3×. Each review is a full autoregressive generation of a JSON object on 2 CPU cores,
+and at this model size that takes a few seconds, not one. Raw numbers: `eval/results/serving_metrics.json`.
 <!-- SERVING_METRICS_END -->
 
 ## What this cost
@@ -293,12 +326,18 @@ This is `planning/05-api-design.md`'s registry with two intentional differences,
 The image is CPU-only (no CUDA anywhere) and fetches its `.gguf` at container start rather than baking it into a layer, so the same image works against any HF Hub model repo:
 
 ```bash
-docker buildx build --platform linux/amd64 -f docker/Dockerfile -t reviewer:local .
-docker run -p 8000:8000 \
-  -e MODEL_REPO=<hf-username>/<gguf-repo> \
+docker build -f docker/Dockerfile -t reviewer:local .
+docker run --cpus=2 --memory=4g -p 8000:8000 \
+  -e MODEL_REPO=rkg209/qwen2.5-coder-1.5b-java-review-gguf \
   -e MODEL_FILE=model-Q4_K_M.gguf \
+  -e MODEL_SHA256=a5eef204db583afc19afdf2f8a64e314c8705064b060ee787470b0bf4d7513f6 \
   reviewer:local
 ```
+
+That is exactly how the serving numbers above were measured. Add `--platform linux/amd64` to
+the build when the image is for an x86 host; a native build is faster to run on Apple Silicon.
+To share it temporarily, run `cloudflared tunnel --url http://localhost:8000` in a second
+terminal; it prints a public `https://….trycloudflare.com` URL.
 
 First boot is slow — the model download happens before `/health` reports ready. To run against the committed CI fixture instead of a real model (no network needed beyond the build):
 

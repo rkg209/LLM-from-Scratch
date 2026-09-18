@@ -1,0 +1,4 @@
+# The published serving scorecard (O5). HF Spaces put Docker Spaces behind a paid plan in 2026,
+# so these numbers come from the production image run locally under free-tier-sized limits
+# (docker run --cpus=2 --memory=4g), and say so -- see progress_report.md.
+results_path: eval/results/serving_metrics.json

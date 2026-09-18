@@ -16,6 +16,7 @@ import time
 import urllib.error
 import urllib.request
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from pathlib import Path
 
 from eval.config import load_config
@@ -101,7 +102,10 @@ def main() -> None:
     config = load_benchmark_config(args.config)
 
     print(f"[benchmark_serving] sending {args.requests} requests to {args.url}")
-    result = benchmark(args.url, args.requests)
+    measured_at = datetime.now(UTC).isoformat(timespec="seconds")
+    # The numbers mean nothing without where and when they were taken -- a laptop and a
+    # free-tier host differ by an order of magnitude, so the artifact carries both itself.
+    result = {**benchmark(args.url, args.requests), "url": args.url, "measured_at": measured_at}
     write_json_atomic(result, config.results_path)
 
     print(

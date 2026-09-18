@@ -26,17 +26,13 @@ broken. Once warm, a review typically takes a few seconds.
 ```bash
 curl -s -X POST https://rkg209-java-code-reviewer.hf.space/v1/review \
   -H 'content-type: application/json' \
-  -d '{"code": "public String getUserName(User user) {\n    return user.getProfile().getName();\n}"}'
+  -d '{"code": "public int sum(int[] a) {\n    int s = 0;\n    for (int i = 0; i <= a.length; i++) s += a[i];\n    return s;\n}"}'
 ```
 
+A real response from this model, copied verbatim:
+
 ```json
-{
-  "severity": "critical",
-  "category": "NullPointerException",
-  "line": 2,
-  "issue": "user.getProfile() may return null, causing a NullPointerException on getName().",
-  "suggested_fix": "Add a null check: if (user.getProfile() == null) return \"unknown\";"
-}
+{"severity":"critical","category":"Logic Error","line":3,"issue":"The loop condition checks i <= a.length, which will cause an ArrayIndexOutOfBoundsException when i equals a.length because the array index is zero-based.","suggested_fix":"Change the loop condition to i < a.length to avoid accessing out-of-bounds elements."}
 ```
 
 `GET /health` and `GET /metrics` are also live. Full API docs, source, and the training story

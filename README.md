@@ -299,6 +299,21 @@ curl -s -X POST localhost:8000/v1/review -H 'content-type: application/json' \
   -d '{"code": "public String f(User u){return u.getProfile().getName();}"}'
 ```
 
+A real exchange with the Q4_K_M GGUF, served with the production config (`temperature 0.2`,
+CPU), copied verbatim from the response and not edited:
+
+```java
+public int sum(int[] a) {
+    int s = 0;
+    for (int i = 0; i <= a.length; i++) s += a[i];
+    return s;
+}
+```
+
+```json
+{"severity":"critical","category":"Logic Error","line":3,"issue":"The loop condition checks i <= a.length, which will cause an ArrayIndexOutOfBoundsException when i equals a.length because the array index is zero-based.","suggested_fix":"Change the loop condition to i < a.length to avoid accessing out-of-bounds elements."}
+```
+
 | Method | Path | Notes |
 |---|---|---|
 | `POST` | `/v1/review` | Returns a validated `ReviewOutput` (`severity`, `category`, `line`, `issue`, `suggested_fix`) on `200`. `POST /review` is a deprecated alias for the same route. |

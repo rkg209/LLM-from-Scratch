@@ -27,12 +27,16 @@ class _StubLlama:
     """Stands in for `llama_cpp.Llama`, recording the kwargs it was constructed with."""
 
     last_init_kwargs: dict[str, Any] | None = None
+    last_messages: list[dict[str, str]] | None = None
 
     def __init__(self, **kwargs: Any) -> None:
         type(self).last_init_kwargs = kwargs
 
-    def __call__(self, prompt: str, max_tokens: int, temperature: float, echo: bool) -> Any:
-        return {"choices": [{"text": "stubbed"}]}
+    def create_chat_completion(
+        self, messages: list[dict[str, str]], max_tokens: int, temperature: float
+    ) -> Any:
+        type(self).last_messages = messages
+        return {"choices": [{"message": {"role": "assistant", "content": "stubbed"}}]}
 
 
 def _install_stub_llama_cpp(monkeypatch: pytest.MonkeyPatch) -> type[_StubLlama]:
@@ -52,13 +56,29 @@ def test_n_gpu_layers_is_hardcoded_to_zero(monkeypatch: pytest.MonkeyPatch) -> N
     assert stub.last_init_kwargs["n_gpu_layers"] == 0
 
 
+def test_generate_sends_the_prompt_as_one_user_chat_message(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The adapter was scored through the chat template (C5); a raw completion call bypasses
+    it and the fine-tuned GGUF answers in prose instead of JSON."""
+    stub = _install_stub_llama_cpp(monkeypatch)
+    config = load_serve_config(CONFIGS / "smoke.yaml")
+
+    output = LlamaCppBackend(config).generate("review this", max_tokens=4)
+
+    assert output == "stubbed"
+    assert stub.last_messages == [{"role": "user", "content": "review this"}]
+
+
 class _LockCheckingLlama:
     def __init__(self, **kwargs: Any) -> None:
         self._backend_lock: threading.Lock | None = None
 
-    def __call__(self, prompt: str, max_tokens: int, temperature: float, echo: bool) -> Any:
+    def create_chat_completion(
+        self, messages: list[dict[str, str]], max_tokens: int, temperature: float
+    ) -> Any:
         assert self._backend_lock is not None and self._backend_lock.locked()
-        return {"choices": [{"text": "locked"}]}
+        return {"choices": [{"message": {"role": "assistant", "content": "locked"}}]}
 
 
 def test_generate_holds_the_lock_during_the_call(monkeypatch: pytest.MonkeyPatch) -> None:

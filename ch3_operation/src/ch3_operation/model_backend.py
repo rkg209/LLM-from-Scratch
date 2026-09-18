@@ -38,13 +38,18 @@ class LlamaCppBackend:
         )
 
     def generate(self, prompt: str, max_tokens: int) -> str:
+        # The prompt goes in as a single user chat message, rendered by the chat template
+        # embedded in the GGUF -- the same shape C5 scored the adapter with
+        # (`apply_chat_template` + `add_generation_prompt`). A raw completion call skips
+        # the `<|im_start|>` framing the adapter was fine-tuned on, and the fine-tuned
+        # GGUF then answers in prose: 0.00 schema-validity on the holdout, a prompt bug
+        # that looked like a quantization regression.
         # llama-cpp-python is not thread-safe: a concurrent call without this lock crashes
         # the process (AC-5).
         with self._lock:
-            result = self._llm(
-                prompt,
+            result = self._llm.create_chat_completion(
+                messages=[{"role": "user", "content": prompt}],
                 max_tokens=max_tokens,
                 temperature=self._config.temperature,
-                echo=False,
             )
-        return result["choices"][0]["text"]
+        return result["choices"][0]["message"]["content"] or ""

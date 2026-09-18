@@ -8,7 +8,7 @@ The chapters share a narrative, not a model. Chapter 1 proves understanding on a
 |---|---|---|
 | **1 — Architecture** (`ch1_architecture/`) | A GPT-style LM written from scratch in pure PyTorch — embeddings, multi-head attention, MLP, norm, training loop — then a KV-cache and quantization added on top. | tokens/sec speedup curve · perplexity-vs-quantization tradeoff |
 | **2 — Adaptation** (`ch2_adaptation/`) | QLoRA fine-tune of `Qwen/Qwen2.5-Coder-1.5B-Instruct` into a Java/Spring code reviewer that emits structured JSON. | head-to-head eval table: fine-tuned vs base vs frontier-API few-shot |
-| **3 — Operation** (`ch3_operation/`) | The fine-tuned model quantized to GGUF, served behind FastAPI with schema validation and latency/drift monitoring, containerized and deployed. | live CPU demo on HF Spaces |
+| **3 — Operation** (`ch3_operation/`) | The fine-tuned model quantized to GGUF, served behind FastAPI with schema validation and latency/drift monitoring, containerized, and runnable anywhere with one `docker run`. | Q4_K_M GGUF with no measured quality loss · serving p50/p99 under free-tier CPU limits |
 
 ## Live demo
 
@@ -71,7 +71,8 @@ flowchart TD
         c3gguf --> c3api["FastAPI
         (schema validation · /metrics)"]
         c3api --> c3docker["Docker"]
-        c3docker --> c3spaces["HF Spaces"]
+        c3docker --> c3spaces["docker run anywhere
+        (HF Spaces paywalled — see Live demo)"]
     end
 
     schema["eval/schema.json + eval/harness.py

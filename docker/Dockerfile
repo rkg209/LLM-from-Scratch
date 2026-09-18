@@ -38,7 +38,13 @@ FROM python:3.12-slim AS final
 RUN apt-get update && apt-get install -y --no-install-recommends libgomp1 \
     && rm -rf /var/lib/apt/lists/*
 
-RUN groupadd --system reviewer && useradd --system --gid reviewer --create-home reviewer
+# uid 1000 because HF Spaces runs the container as uid 1000 regardless of USER; a system uid
+# would leave /app and /models unwritable there. /models is created and chowned here because
+# the entrypoint downloads the GGUF into it as this non-root user -- without it, `mkdir -p
+# /models` fails on first boot (O4's docker test never saw this: it mounts the model in).
+RUN groupadd --gid 1000 reviewer \
+    && useradd --uid 1000 --gid reviewer --create-home reviewer \
+    && mkdir -p /models && chown reviewer:reviewer /models
 
 COPY --from=builder /opt/venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"

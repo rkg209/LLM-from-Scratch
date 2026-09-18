@@ -24,7 +24,7 @@ broken. Once warm, a review typically takes a few seconds.
 ## Try it
 
 ```bash
-curl -s -X POST https://<this-space>.hf.space/v1/review \
+curl -s -X POST https://rkg209-java-code-reviewer.hf.space/v1/review \
   -H 'content-type: application/json' \
   -d '{"code": "public String getUserName(User user) {\n    return user.getProfile().getName();\n}"}'
 ```
@@ -41,5 +41,5 @@ curl -s -X POST https://<this-space>.hf.space/v1/review \
 
 `GET /health` and `GET /metrics` are also live. Full API docs, source, and the training story
 (from-scratch transformer → QLoRA fine-tune → this container) are in the project repo:
-https://github.com/<owner>/<repo> — see its README for the head-to-head eval table this model
+https://github.com/rkg209/LLM-from-Scratch — see its README for the head-to-head eval table this model
 was measured against before it was quantized and deployed here.

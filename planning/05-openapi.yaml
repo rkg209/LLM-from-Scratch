@@ -1,0 +1,955 @@
+<!--
+IMPLEMENTATION DRIFT (spec O2, plan .claude/plans/Operation.md D-1/D-2/D-6): this document
+predates the O2 implementation and is not re-synced key-by-key. Known differences, decided
+deliberately rather than accidentally:
+  - Routes are versioned: POST /v1/review (this doc still shows unprefixed /review). /review
+    is kept as a deprecated alias so nothing here goes 404.
+  - request_id is on every response as the X-Request-Id header, not only in the error body.
+  - 429 RATE_LIMITED is defined in the registry below but not enforced in v1.0 -- HF Spaces
+    throttles at the infrastructure level.
+See README.md's "API" section for the surface as actually implemented.
+-->
+
+```yaml
+openapi: "3.0.3"
+
+info:
+  title: "LLM Engineering — Java Code Reviewer API"
+  description: |
+    REST API for the Chapter 3 Operation package of the llm-engineering-architecture-to-edge
+    monorepo. Exposes a CPU-served GGUF-quantised Java code review model (Qwen2.5-Coder-1.5B
+    fine-tuned with QLoRA), Prometheus-compatible observability endpoints, and a health probe.
+
+    ## Authentication
+    All `/v1/*` endpoints require a bearer token supplied in the `Authorization` header.
+    The token is validated against the `API_KEY` environment variable on the server.
+    The `/health` and `/metrics` endpoints are unauthenticated so that infrastructure
+    probes and Prometheus scrapers can reach them without credentials.
+
+    ## Versioning
+    The API is versioned via the URL path prefix `/v1`. Breaking changes will increment
+    the major version. The current version is **v1**.
+
+    ## Error model
+    All errors return an `ErrorResponse` object. HTTP status codes follow RFC 9110.
+    Validation failures return `422 Unprocessable Entity`. Server-side inference
+    failures return `503 Service Unavailable`. All other unexpected conditions return
+    `500 Internal Server Error`.
+
+    ## Rate limiting
+    The server is single-threaded with respect to model inference (one request at a time,
+    protected by an internal lock). Concurrent requests are queued by the ASGI server.
+    No explicit rate-limit headers are emitted in v1; callers should expect p99 latency
+    of up to 30 s on CPU under load.
+  version: "1.0.0"
+  contact:
+    name: "LLM Engineering Project"
+  license:
+    name: "MIT"
+
+servers:
+  - url: "https://api.example.com/v1"
+    description: "Production — HF Spaces / cloud free tier"
+  - url: "http://localhost:8080/v1"
+    description: "Local development"
+  - url: "http://localhost:8080"
+    description: "Local — unversioned health and metrics endpoints"
+
+# ---------------------------------------------------------------------------
+# Security schemes
+# ---------------------------------------------------------------------------
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: "opaque"
+      description: |
+        Static API key supplied as a bearer token. Set the `API_KEY` environment
+        variable on the server. Pass the same value in the `Authorization` header:
+        `Authorization: Bearer <API_KEY>`.
+
+  # -------------------------------------------------------------------------
+  # Reusable schemas
+  # -------------------------------------------------------------------------
+  schemas:
+
+    # -- Core domain types ---------------------------------------------------
+
+    Severity:
+      type: string
+      enum:
+        - critical
+        - major
+        - minor
+        - info
+      description: |
+        Severity classification of the identified issue.
+        - `critical` — security vulnerability or data-loss risk.
+        - `major`    — logic error that will cause incorrect behaviour.
+        - `minor`    — code smell or non-idiomatic pattern.
+        - `info`     — informational suggestion with no functional impact.
+
+    ReviewOutput:
+      type: object
+      description: |
+        Structured output produced by the model for a single code review request.
+        Mirrors `eval/schema.json` exactly. `additionalProperties` is false.
+      required:
+        - severity
+        - category
+        - line
+        - issue
+        - suggested_fix
+      additionalProperties: false
+      properties:
+        severity:
+          $ref: "#/components/schemas/Severity"
+        category:
+          type: string
+          minLength: 1
+          maxLength: 64
+          description: "Short label for the bug category, e.g. \"NullPointerException risk\"."
+          example: "NullPointerException risk"
+        line:
+          type: integer
+          minimum: 1
+          description: "1-based line number in the submitted code where the issue occurs."
+          example: 42
+        issue:
+          type: string
+          minLength: 1
+          maxLength: 512
+          description: "Human-readable description of the identified bug."
+          example: "Variable `result` may be null when `findById` returns an empty Optional."
+        suggested_fix:
+          type: string
+          minLength: 1
+          maxLength: 1024
+          description: "Concrete suggestion for how to fix the issue."
+          example: "Use `findById(...).orElseThrow(() -> new EntityNotFoundException(...))` instead of `.get()`."
+
+    ReviewRequest:
+      type: object
+      description: "Input payload for a code review request."
+      required:
+        - code
+      additionalProperties: false
+      properties:
+        code:
+          type: string
+          minLength: 1
+          maxLength: 32768
+          description: |
+            Raw Java source code to review. Must be non-empty. The model is optimised
+            for snippets of 5–200 lines; very large inputs will be truncated to the
+            model's context window (`n_ctx` from server config).
+          example: |
+            public User getUser(Long id) {
+                return userRepository.findById(id).get();
+            }
+        context:
+          type: string
+          maxLength: 4096
+          default: ""
+          description: |
+            Optional free-text description of the surrounding file, class, or module.
+            Providing context (e.g. class name, framework version) improves review quality.
+          example: "Spring Boot 3.2 REST controller; UserRepository extends JpaRepository."
+
+    # -- Observability types -------------------------------------------------
+
+    HealthResponse:
+      type: object
+      required:
+        - status
+        - model_loaded
+      additionalProperties: false
+      properties:
+        status:
+          type: string
+          enum:
+            - ok
+            - degraded
+          description: |
+            `ok` — model is loaded and the service is ready to accept requests.
+            `degraded` — service is running but the model failed to load or is
+            being reloaded; requests will return `503`.
+        model_loaded:
+          type: boolean
+          description: "True if the GGUF model has been successfully loaded into memory."
+        uptime_seconds:
+          type: number
+          format: double
+          minimum: 0
+          description: "Seconds since the process started."
+          example: 3612.4
+        schema_validity_rate:
+          type: number
+          format: double
+          minimum: 0
+          maximum: 1
+          description: |
+            Rolling schema validity rate over the last 100 requests.
+            Absent if fewer than 1 request has been processed.
+          example: 0.97
+        version:
+          type: string
+          description: "Server application version string."
+          example: "1.0.0"
+
+    MetricsResponse:
+      type: string
+      description: |
+        Prometheus exposition format (text/plain; version=0.0.4).
+        Contains the following metric families:
+        - `review_request_latency_seconds` — Histogram with buckets
+          [0.1, 0.5, 1, 2, 5, 10, 30].
+        - `review_requests_total` — Counter with label `status` ∈ {success, error}.
+        - `review_schema_validity_rate` — Gauge; rolling window of 100 requests.
+      example: |
+        # HELP review_request_latency_seconds End-to-end request latency in seconds
+        # TYPE review_request_latency_seconds histogram
+        review_request_latency_seconds_bucket{le="0.1"} 0
+        review_request_latency_seconds_bucket{le="0.5"} 3
+        review_request_latency_seconds_bucket{le="1.0"} 12
+        review_request_latency_seconds_bucket{le="2.0"} 28
+        review_request_latency_seconds_bucket{le="5.0"} 41
+        review_request_latency_seconds_bucket{le="10.0"} 44
+        review_request_latency_seconds_bucket{le="30.0"} 44
+        review_request_latency_seconds_bucket{le="+Inf"} 44
+        review_request_latency_seconds_sum 67.832
+        review_request_latency_seconds_count 44
+        # HELP review_requests_total Total review requests by outcome
+        # TYPE review_requests_total counter
+        review_requests_total{status="success"} 41
+        review_requests_total{status="error"} 3
+        # HELP review_schema_validity_rate Rolling schema validity rate (window=100)
+        # TYPE review_schema_validity_rate gauge
+        review_schema_validity_rate 0.93
+
+    # -- Eval / result types -------------------------------------------------
+
+    PerSampleResult:
+      type: object
+      required:
+        - id
+        - valid
+        - caught
+        - raw_output
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: "FK → ReviewRecord.id in the holdout set."
+        valid:
+          type: boolean
+          description: "Whether the model output passed schema validation."
+        caught:
+          type: boolean
+          description: "Whether the model identified the bug (line ± 2 tolerance)."
+        raw_output:
+          type: string
+          description: "Unmodified raw string returned by the model."
+
+    EvalResult:
+      type: object
+      required:
+        - schema_validity_rate
+        - bug_catch_rate
+        - n_samples
+        - n_valid
+        - n_caught
+        - per_sample
+      additionalProperties: false
+      properties:
+        schema_validity_rate:
+          type: number
+          format: double
+          minimum: 0
+          maximum: 1
+          description: "Fraction of outputs that passed schema validation."
+          example: 0.94
+        bug_catch_rate:
+          type: number
+          format: double
+          minimum: 0
+          maximum: 1
+          description: "Fraction of holdout bugs identified (line ± 2 tolerance)."
+          example: 0.81
+        n_samples:
+          type: integer
+          minimum: 0
+          description: "Total number of holdout samples evaluated."
+          example: 200
+        n_valid:
+          type: integer
+          minimum: 0
+          description: "Number of outputs that passed schema validation."
+          example: 188
+        n_caught:
+          type: integer
+          minimum: 0
+          description: "Number of bugs correctly identified."
+          example: 162
+        per_sample:
+          type: array
+          items:
+            $ref: "#/components/schemas/PerSampleResult"
+          description: "Per-sample breakdown; length equals n_samples."
+
+    EvalRunType:
+      type: string
+      enum:
+        - baseline_base
+        - baseline_frontier
+        - finetuned
+      description: |
+        - `baseline_base`     — zero-shot base model (no adapter).
+        - `baseline_frontier` — frontier API 3-shot.
+        - `finetuned`         — QLoRA fine-tuned adapter.
+
+    EvalRunSummary:
+      type: object
+      description: "Summary row for a completed evaluation run."
+      required:
+        - run_id
+        - recorded_at
+        - run_type
+        - schema_validity_rate
+        - bug_catch_rate
+        - n_samples
+      additionalProperties: false
+      properties:
+        run_id:
+          type: string
+          format: uuid
+        recorded_at:
+          type: string
+          format: date-time
+        run_type:
+          $ref: "#/components/schemas/EvalRunType"
+        schema_validity_rate:
+          type: number
+          format: double
+          minimum: 0
+          maximum: 1
+        bug_catch_rate:
+          type: number
+          format: double
+          minimum: 0
+          maximum: 1
+        n_samples:
+          type: integer
+          minimum: 0
+        adapter_path:
+          type: string
+          nullable: true
+          description: "HF Hub repo ID or local path; null for baseline runs."
+        frontier_model_tag:
+          type: string
+          nullable: true
+          description: "Frontier model identifier; null for non-frontier runs."
+
+    EvalRunDetail:
+      allOf:
+        - $ref: "#/components/schemas/EvalRunSummary"
+        - type: object
+          required:
+            - eval_result
+          properties:
+            eval_result:
+              $ref: "#/components/schemas/EvalResult"
+            base_model_tag:
+              type: string
+              nullable: true
+              example: "Qwen/Qwen2.5-Coder-1.5B-Instruct"
+            config_path:
+              type: string
+              nullable: true
+              example: "ch2_adaptation/configs/full.yaml"
+            holdout_manifest_run_id:
+              type: string
+              format: uuid
+              nullable: true
+
+    # -- Benchmark types -----------------------------------------------------
+
+    BenchmarkModeResult:
+      type: object
+      required:
+        - tokens_per_sec
+        - perplexity
+        - n_steps
+      additionalProperties: false
+      properties:
+        tokens_per_sec:
+          type: number
+          format: double
+          minimum: 0
+          exclusiveMinimum: true
+          description: "Wall-clock tokens per second (warm-up excluded)."
+          example: 312.7
+        perplexity:
+          type: number
+          format: double
+          minimum: 0
+          exclusiveMinimum: true
+          description: "Exp(mean cross-entropy) on the held-out test slice."
+          example: 18.4
+        n_steps:
+          type: integer
+          minimum: 1
+          description: "Number of generation steps measured (always 100 after warm-up)."
+          example: 100
+
+    BenchmarkResult:
+      type: object
+      required:
+        - run_id
+        - recorded_at
+        - checkpoint_path
+        - config_path
+        - seed
+        - results
+      additionalProperties: false
+      properties:
+        run_id:
+          type: string
+          format: uuid
+        recorded_at:
+          type: string
+          format: date-time
+        checkpoint_path:
+          type: string
+          example: "outputs/ch1/model.pt"
+        config_path:
+          type: string
+          example: "ch1_architecture/configs/full.yaml"
+        seed:
+          type: integer
+          example: 42
+        results:
+          type: object
+          description: "Keyed by quantisation mode."
+          required:
+            - fp32
+            - fp16
+            - int8
+            - int4
+          additionalProperties: false
+          properties:
+            fp32:
+              $ref: "#/components/schemas/BenchmarkModeResult"
+            fp16:
+              $ref: "#/components/schemas/BenchmarkModeResult"
+            int8:
+              $ref: "#/components/schemas/BenchmarkModeResult"
+            int4:
+              $ref: "#/components/schemas/BenchmarkModeResult"
+
+    # -- Pagination ----------------------------------------------------------
+
+    PaginationMeta:
+      type: object
+      required:
+        - total
+        - page
+        - page_size
+        - total_pages
+      additionalProperties: false
+      properties:
+        total:
+          type: integer
+          minimum: 0
+          description: "Total number of items matching the query."
+        page:
+          type: integer
+          minimum: 1
+          description: "Current page number (1-based)."
+        page_size:
+          type: integer
+          minimum: 1
+          maximum: 100
+          description: "Number of items per page."
+        total_pages:
+          type: integer
+          minimum: 0
+          description: "Ceiling of total / page_size."
+
+    # -- Error types ---------------------------------------------------------
+
+    ErrorResponse:
+      type: object
+      required:
+        - error
+        - code
+      additionalProperties: false
+      properties:
+        error:
+          type: string
+          minLength: 1
+          description: "Human-readable error message."
+          example: "Model output did not pass schema validation after repair attempt."
+        code:
+          type: integer
+          description: "HTTP status code mirrored in the body for client convenience."
+          example: 422
+        detail:
+          type: string
+          nullable: true
+          description: "Optional structured detail; may contain Pydantic validation errors."
+          example: "ValidationError: field 'line' — value is not a valid integer"
+        request_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: "UUID generated per request; use for log correlation."
+
+  # -------------------------------------------------------------------------
+  # Reusable parameters
+  # -------------------------------------------------------------------------
+  parameters:
+
+    PageParam:
+      name: page
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+      description: "Page number (1-based)."
+
+    PageSizeParam:
+      name: page_size
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+      description: "Number of items per page."
+
+    RunIdPath:
+      name: run_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+      description: "UUID v4 identifier of the target run."
+
+  # -------------------------------------------------------------------------
+  # Reusable responses
+  # -------------------------------------------------------------------------
+  responses:
+
+    400BadRequest:
+      description: "Bad Request — malformed JSON body or invalid query parameter."
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            error: "Request body is not valid JSON."
+            code: 400
+            detail: null
+            request_id: "a1b2c3d4-0000-0000-0000-000000000000"
+
+    401Unauthorized:
+      description: "Unauthorized — missing or invalid bearer token."
+      headers:
+        WWW-Authenticate:
+          schema:
+            type: string
+          example: 'Bearer realm="Java Code Reviewer API"'
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            error: "Missing or invalid Authorization header."
+            code: 401
+            detail: null
+            request_id: null
+
+    404NotFound:
+      description: "Not Found — the requested resource does not exist."
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            error: "Eval run not found."
+            code: 404
+            detail: null
+            request_id: "a1b2c3d4-0000-0000-0000-000000000001"
+
+    422UnprocessableEntity:
+      description: |
+        Unprocessable Entity — the request was well-formed but the model output
+        failed schema validation after both parse attempts (direct JSON and
+        markdown-fence extraction).
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            error: "Model output did not pass schema validation after repair attempt."
+            code: 422
+            detail: "ValidationError: field 'line' — value is not a valid integer"
+            request_id: "a1b2c3d4-0000-0000-0000-000000000002"
+
+    429TooManyRequests:
+      description: |
+        Too Many Requests — the inference queue is full. Retry after the interval
+        indicated in the `Retry-After` header.
+      headers:
+        Retry-After:
+          schema:
+            type: integer
+          description: "Seconds to wait before retrying."
+          example: 5
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            error: "Inference queue is full. Please retry after 5 seconds."
+            code: 429
+            detail: null
+            request_id: null
+
+    503ServiceUnavailable:
+      description: |
+        Service Unavailable — the model is not loaded or a fatal inference error
+        occurred. The service will recover automatically; retry after the interval
+        in `Retry-After`.
+      headers:
+        Retry-After:
+          schema:
+            type: integer
+          example: 30
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            error: "Model is not loaded. The service is starting up."
+            code: 503
+            detail: null
+            request_id: null
+
+    500InternalServerError:
+      description: "Internal Server Error — unexpected server-side failure."
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            error: "An unexpected error occurred."
+            code: 500
+            detail: null
+            request_id: "a1b2c3d4-0000-0000-0000-000000000003"
+
+# ---------------------------------------------------------------------------
+# Global security (overridden per-endpoint where needed)
+# ---------------------------------------------------------------------------
+security:
+  - BearerAuth: []
+
+# ---------------------------------------------------------------------------
+# Tags
+# ---------------------------------------------------------------------------
+tags:
+  - name: review
+    description: "Core code review inference endpoint."
+  - name: observability
+    description: "Health probe and Prometheus metrics scrape endpoints (unauthenticated)."
+  - name: eval
+    description: "Evaluation run results — read-only access to `eval/results/`."
+  - name: benchmark
+    description: "Chapter 1 quantisation benchmark results — read-only."
+  - name: schema
+    description: "Canonical JSON Schema contract introspection."
+
+# ---------------------------------------------------------------------------
+# Paths
+# ---------------------------------------------------------------------------
+paths:
+
+  # ==========================================================================
+  # REVIEW
+  # ==========================================================================
+
+  /v1/review:
+    post:
+      operationId: createReview
+      summary: "Submit Java code for review"
+      description: |
+        Submits a Java code snippet to the fine-tuned GGUF model for review.
+        The model identifies exactly one bug per request and returns a structured
+        `ReviewOutput` object.
+
+        **Processing pipeline:**
+        1. Request body is validated (Pydantic).
+        2. A prompt is constructed from `code` and `context` using the locked
+           Qwen2.5 chat-template format.
+        3. `LlamaCppBackend.generate()` is called (CPU, single-threaded, locked).
+        4. `validator.validate_output()` attempts to parse the raw string:
+           - Attempt 1: direct `json.loads`.
+           - Attempt 2: extract from a ` ```json ``` ` markdown fence.
+           - If both fail: `422` is returned.
+        5. On success, Prometheus metrics are updated and the `ReviewOutput` is
+           returned.
+
+        **Latency:** Expect p50 ≈ 2 s, p99 ≈ 15 s on a 2-vCPU free-tier instance.
+      tags:
+        - review
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReviewRequest"
+            examples:
+              simple:
+                summary: "Minimal request"
+                value:
+                  code: |
+                    public User getUser(Long id) {
+                        return userRepository.findById(id).get();
+                    }
+              with_context:
+                summary: "Request with context"
+                value:
+                  code: |
+                    public List<Order> getOrders(String userId) {
+                        return orderRepo.findByUserId(userId);
+                    }
+                  context: "Spring Boot 3.2 REST controller; OrderRepository extends JpaRepository."
+      responses:
+        "200":
+          description: |
+            Review completed successfully. The model identified one bug and the
+            output passed schema validation.
+          headers:
+            X-Request-Id:
+              schema:
+                type: string
+                format: uuid
+              description: "UUID generated for this request; matches `request_id` in error bodies."
+            X-Latency-Ms:
+              schema:
+                type: number
+                format: double
+              description: "End-to-end server-side latency in milliseconds."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReviewOutput"
+              example:
+                severity: "major"
+                category: "NullPointerException risk"
+                line: 2
+                issue: "Optional.get() throws NoSuchElementException when the entity is absent."
+                suggested_fix: "Replace `.get()` with `.orElseThrow(() -> new EntityNotFoundException(id))`."
+        "400":
+          $ref: "#/components/responses/400BadRequest"
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "422":
+          $ref: "#/components/responses/422UnprocessableEntity"
+        "429":
+          $ref: "#/components/responses/429TooManyRequests"
+        "503":
+          $ref: "#/components/responses/503ServiceUnavailable"
+        "500":
+          $ref: "#/components/responses/500InternalServerError"
+
+  # ==========================================================================
+  # OBSERVABILITY (unauthenticated)
+  # ==========================================================================
+
+  /health:
+    get:
+      operationId: getHealth
+      summary: "Health probe"
+      description: |
+        Returns the current health status of the service. This endpoint is
+        **unauthenticated** and is intended for use by load balancers, container
+        orchestrators, and human operators.
+
+        Returns `200` when `status == "ok"` and `503` when `status == "degraded"`.
+      tags:
+        - observability
+      security: []
+      responses:
+        "200":
+          description: "Service is healthy and the model is loaded."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+              example:
+                status: ok
+                model_loaded: true
+                uptime_seconds: 3612.4
+                schema_validity_rate: 0.97
+                version: "1.0.0"
+        "503":
+          description: |
+            Service is degraded — model not yet loaded or failed to load.
+            Infrastructure probes should not route traffic to this instance.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+              example:
+                status: degraded
+                model_loaded: false
+                uptime_seconds: 4.1
+                version: "1.0.0"
+
+  /metrics:
+    get:
+      operationId: getMetrics
+      summary: "Prometheus metrics scrape"
+      description: |
+        Returns current Prometheus metrics in the standard text exposition format
+        (text/plain; version=0.0.4). This endpoint is **unauthenticated** and is
+        intended for Prometheus scrapers.
+
+        **Metric families exposed:**
+        | Name | Type | Labels | Description |
+        |------|------|--------|-------------|
+        | `review_request_latency_seconds` | Histogram | — | End-to-end latency; buckets: 0.1, 0.5, 1, 2, 5, 10, 30 s |
+        | `review_requests_total` | Counter | `status` ∈ {success, error} | Total requests by outcome |
+        | `review_schema_validity_rate` | Gauge | — | Rolling validity rate over last 100 requests |
+      tags:
+        - observability
+      security: []
+      responses:
+        "200":
+          description: "Prometheus text format metrics."
+          content:
+            text/plain:
+              schema:
+                $ref: "#/components/schemas/MetricsResponse"
+        "500":
+          $ref: "#/components/responses/500InternalServerError"
+
+  # ==========================================================================
+  # EVAL RUNS
+  # ==========================================================================
+
+  /v1/eval/runs:
+    get:
+      operationId: listEvalRuns
+      summary: "List evaluation runs"
+      description: |
+        Returns a paginated list of completed evaluation runs stored in
+        `eval/results/`. Includes baseline runs (base model and frontier API)
+        and fine-tuned model runs.
+
+        Results are ordered by `recorded_at` descending (most recent first).
+      tags:
+        - eval
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/PageParam"
+        - $ref: "#/components/parameters/PageSizeParam"
+        - name: run_type
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/EvalRunType"
+          description: "Filter by run type. Omit to return all types."
+      responses:
+        "200":
+          description: "Paginated list of evaluation run summaries."
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - pagination
+                additionalProperties: false
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/EvalRunSummary"
+                  pagination:
+                    $ref: "#/components/schemas/PaginationMeta"
+              example:
+                data:
+                  - run_id: "550e8400-e29b-41d4-a716-446655440000"
+                    recorded_at: "2025-01-15T14:32:00Z"
+                    run_type: finetuned
+                    schema_validity_rate: 0.94
+                    bug_catch_rate: 0.81
+                    n_samples: 200
+                    adapter_path: "org/qwen2.5-coder-java-reviewer"
+                    frontier_model_tag: null
+                  - run_id: "550e8400-e29b-41d4-a716-446655440001"
+                    recorded_at: "2025-01-14T09:10:00Z"
+                    run_type: baseline_frontier
+                    schema_validity_rate: 0.99
+                    bug_catch_rate: 0.88
+                    n_samples: 200
+                    adapter_path: null
+                    frontier_model_tag: "claude-3-5-sonnet-20241022"
+                pagination:
+                  total: 3
+                  page: 1
+                  page_size: 20
+                  total_pages: 1
+        "400":
+          $ref: "#/components/responses/400BadRequest"
+        "401":
+          $ref: "#/components/responses/401Unauthorized"
+        "500":
+          $ref: "#/components/responses/500InternalServerError"
+
+  /v1/eval/runs/{run_id}:
+    get:
+      operationId: getEvalRun
+      summary: "Get evaluation run detail"
+      description: |
+        Returns the full detail of a single evaluation run, including the
+        complete `EvalResult` with per-sample breakdown.
+
+        **Warning:** The `per_sample` array may contain up to several hundred
+        entries. Use the list endpoint for summary data.
+      tags:
+        - eval
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/RunIdPath"
+      responses:
+        "200":
+          description: "Full evaluation run detail."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EvalRunDetail"
+              example:
+                run_id: "550e8400-e29b-41d4-a716-446655440000"
+                recorded_at: "2025-01-15T14:32:00Z"
+                run_type: finetuned
+                schema_validity_rate: 0.94
+                bug_catch_rate: 0.81
+                n_samples: 200
+                n_valid: 188
+                n_caught: 162
+                adapter_path: "org/qwen2.5-coder-java-reviewer"
+                frontier_model_tag:

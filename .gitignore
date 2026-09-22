@@ -34,13 +34,11 @@ build/
 .idea/
 .vscode/
 
-.claude/
+# --- Private working notes (A12: specs/, planning/, the design doc and .claude/ are public) ---
+.claude/settings.local.json
 CLAUDE.md
 HANDOFF.md
-llm-engineering-architecture-to-edge.md
 progress_report.md
-specs/
-planning/
 MANUAL_TESTING.md
 PROJECT_RESULTS_AUDIT.md
 ACTION_PLAN_TO_RESULTS.md

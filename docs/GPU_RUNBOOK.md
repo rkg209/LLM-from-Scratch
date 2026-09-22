@@ -125,9 +125,11 @@ uv run python scripts/benchmark_serving.py <space-url>   # fills SERVING_METRICS
 ## Step 9 — pin the published artifacts
 
 Once the adapter (step 4) and GGUF (step 7) are on HF Hub, point `ch3_operation`'s config
-at the repo ID **plus the pinned revision SHA**, not a bare repo ID / `main`. This is a
-known, tracked to-do (see `REPRODUCING.md`'s "Pinned artifacts" section) — resolve it the
-same session the artifacts are first published.
+at the repo ID **plus the pinned revision SHA**, not a bare repo ID / `main`. **Done
+2026-09-22 (A13):** `full.yaml` pins the GGUF, `export_full.yaml` pins the adapter, and the
+container fetches from that revision only. The SHAs are in `REPRODUCING.md`'s "Pinned
+artifacts" table. A new model means new SHAs in both places, updated in the same session it
+is published.
 
 ---
 
@@ -232,5 +234,4 @@ repo itself — no amount of GPU time closes them.
 3. **X1 T2/T6** — the README's live-demo link and headline number slots are placeholders
    until O5 is actually deployed and A5/C5's full runs land (steps 4–8 above resolve
    this automatically once run; no separate code work needed).
-4. **Artifact revision pinning** (step 9) — currently a bare repo ID with no SHA pin,
-   tracked as a known temporary exception, not yet closed.
+4. **Artifact revision pinning** (step 9) — closed 2026-09-22 (A13); see step 9.

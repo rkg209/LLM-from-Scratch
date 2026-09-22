@@ -11,6 +11,23 @@ from eval.config import load_config as _load_config
 
 _ENV_VAR = re.compile(r"^\$\{(\w+)\}$")
 
+# A pinned HF Hub revision is a full 40-hex commit SHA -- never `main` or a short SHA, which
+# are moving targets or ambiguous (X2 AC-7).
+_REVISION_SHA = re.compile(r"^[0-9a-f]{40}$")
+_FILE_SHA256 = re.compile(r"^[0-9a-f]{64}$")
+
+
+def check_hub_pin(label: str, repo: str | None, revision: str | None) -> None:
+    """A Hub artifact reference is a repo *plus* a full commit SHA, or absent entirely."""
+    if (repo is None) != (revision is None):
+        raise ValueError(f"{label}: a Hub repo and its revision are set together or not at all")
+    if revision is not None and not _REVISION_SHA.match(revision):
+        raise ValueError(
+            f"{label}: revision must be a full 40-hex commit SHA (not a branch or short SHA), "
+            f"got {revision!r}"
+        )
+
+
 # CPU-only is a hard project constraint (CON-12), not a tunable default. The "edge" claim
 # is that this runs on a free CPU tier; a GPU layer count is not offered.
 N_GPU_LAYERS = 0
@@ -28,8 +45,23 @@ class ServeConfig:
     metrics_window: int
     max_request_bytes: int
     api_version: str
+    # Where the container fetches `model_path` from when it is absent: HF Hub, pinned to a
+    # commit SHA and verified by file hash. All four null for a profile served from a local file.
+    model_repo: str | None
+    model_file: str | None
+    model_revision: str | None
+    model_sha256: str | None
 
     def __post_init__(self) -> None:
+        pin = (self.model_repo, self.model_file, self.model_revision, self.model_sha256)
+        if None in pin and any(value is not None for value in pin):
+            raise ValueError(
+                "model_repo, model_file, model_revision and model_sha256 are set together "
+                "or not at all"
+            )
+        check_hub_pin("model", self.model_repo, self.model_revision)
+        if self.model_sha256 is not None and not _FILE_SHA256.match(self.model_sha256):
+            raise ValueError(f"model_sha256 must be 64 hex chars, got {self.model_sha256!r}")
         if self.metrics_window < 1:
             raise ValueError(f"metrics_window must be positive, got {self.metrics_window}")
         if self.n_threads < 1:
@@ -88,8 +120,12 @@ class ExportConfig:
     llama_cpp_dir: str
     sanity_sample_path: str
     sanity_n: int
+    # Provenance: the published Hub copy of `adapter_path`, pinned to a commit SHA. Null for smoke.
+    adapter_repo: str | None
+    adapter_revision: str | None
 
     def __post_init__(self) -> None:
+        check_hub_pin("adapter", self.adapter_repo, self.adapter_revision)
         if self.quant_type not in _QUANT_LADDER:
             raise ValueError(
                 f"quant_type must be one of {_QUANT_LADDER} (AC-4's fallback ladder), got "

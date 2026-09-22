@@ -11,3 +11,9 @@ port: 8000
 metrics_window: 100
 max_request_bytes: 32768
 api_version: "v1"
+# The published O1 GGUF, pinned (A13): the container downloads exactly this commit of the repo
+# and refuses the file unless its sha256 matches. Moving to a new model means editing all four.
+model_repo: rkg209/qwen2.5-coder-1.5b-java-review-gguf
+model_file: model-Q4_K_M.gguf
+model_revision: a2133f6a226bc081a7ac29036d2d7fb681e6bfd6
+model_sha256: a5eef204db583afc19afdf2f8a64e314c8705064b060ee787470b0bf4d7513f6

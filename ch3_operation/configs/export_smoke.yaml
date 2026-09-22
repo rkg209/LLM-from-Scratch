@@ -10,3 +10,6 @@ quant_type: Q4_K_M
 llama_cpp_dir: outputs/smoke/llama.cpp
 sanity_sample_path: ch3_operation/tests/fixtures/sanity_sample.jsonl
 sanity_n: 3
+# Smoke adapter is local-only; it is never published.
+adapter_repo: null
+adapter_revision: null

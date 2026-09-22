@@ -9,3 +9,7 @@ quant_type: Q4_K_M
 llama_cpp_dir: outputs/llama.cpp
 sanity_sample_path: ch2_adaptation/data/train.jsonl
 sanity_n: 10
+# The Hub copy of adapter_path this export was run from (C4 job 401897), pinned (A13). Its
+# adapter_model.safetensors sha256 is ace89142..., the same hash eval/results/finetuned.json records.
+adapter_repo: rkg209/qwen2.5-coder-1.5b-java-review-qlora
+adapter_revision: f8b1cf764d630fcad9a197750624e66b0266fd50

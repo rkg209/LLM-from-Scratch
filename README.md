@@ -21,7 +21,7 @@ What exists instead:
 - **The model is public:** [`rkg209/qwen2.5-coder-1.5b-java-review-gguf`](https://huggingface.co/rkg209/qwen2.5-coder-1.5b-java-review-gguf)
   (Q4_K_M, 986 MB).
 - **One command runs the whole service anywhere Docker runs.** The container downloads that
-  GGUF, verifies its sha256 and serves the API. See [Run it locally with Docker](#run-it-locally-with-docker).
+  GGUF at a pinned commit, verifies its sha256 and serves the API. See [Run it locally with Docker](#run-it-locally-with-docker).
 - **A temporary public link for live demos:** `cloudflared tunnel --protocol http2 --url http://localhost:8000`
   in front of the running container. It lives only as long as the laptop runs it.
 - **Serving numbers measured on the production image**, limited to free-tier-sized resources
@@ -343,12 +343,14 @@ The image is CPU-only (no CUDA anywhere) and fetches its `.gguf` at container st
 
 ```bash
 docker build -f docker/Dockerfile -t reviewer:local .
-docker run --cpus=2 --memory=4g -p 8000:8000 \
-  -e MODEL_REPO=rkg209/qwen2.5-coder-1.5b-java-review-gguf \
-  -e MODEL_FILE=model-Q4_K_M.gguf \
-  -e MODEL_SHA256=a5eef204db583afc19afdf2f8a64e314c8705064b060ee787470b0bf4d7513f6 \
-  reviewer:local
+docker run --cpus=2 --memory=4g -p 8000:8000 reviewer:local
 ```
+
+No model flags are needed. The image's serving config pins the GGUF to an exact Hub commit
+(`a2133f6…`) and sha256, so every container serves the bytes the published numbers were
+measured on. To serve a different model, pass `-e MODEL_REPO=… -e MODEL_FILE=…
+-e MODEL_REVISION=<40-hex commit SHA>` (optionally `-e MODEL_SHA256=…`). A branch name is
+refused. The pinned revisions are listed in [REPRODUCING.md](REPRODUCING.md#pinned-artifacts).
 
 That is exactly how the serving numbers above were measured. Add `--platform linux/amd64` to
 the build when the image is for an x86 host; a native build is faster to run on Apple Silicon.

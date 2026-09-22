@@ -14,15 +14,15 @@
 # this script does not build or upload the model itself).
 #
 # Usage:
-#   SPACE_ID=<hf-username>/<space-name> \
-#   MODEL_REPO=<hf-username>/<gguf-repo> MODEL_FILE=model-Q4_K_M.gguf \
-#     ./scripts/deploy_space.sh
+#   SPACE_ID=<hf-username>/<space-name> ./scripts/deploy_space.sh
+#
+# The image serves the GGUF pinned in ch3_operation's serving config (A13), so no model
+# variables are needed. Serving a different model means MODEL_REPO + MODEL_FILE +
+# MODEL_REVISION (a full commit SHA) as Space variables -- see docker/entrypoint.sh.
 
 set -eu
 
 : "${SPACE_ID:?SPACE_ID must be set, e.g. someuser/java-code-reviewer}"
-: "${MODEL_REPO:?MODEL_REPO must be set -- the HF Hub repo holding the exported .gguf}"
-: "${MODEL_FILE:?MODEL_FILE must be set -- the .gguf filename within MODEL_REPO}"
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$REPO_ROOT"
@@ -44,12 +44,10 @@ echo "[deploy_space] uploading the Space card (renamed to repo root README.md)"
 hf upload "$SPACE_ID" space/README.md README.md --repo-type space
 
 cat <<EOF
-[deploy_space] pushed. Now set these as Space repository variables/secrets (Settings tab):
-  MODEL_REPO = ${MODEL_REPO}
-  MODEL_FILE = ${MODEL_FILE}
-Neither needs to be a secret -- the model repo is public (no HF_TOKEN required at runtime,
-per O5 AC-7). A build will start automatically; first boot also downloads the model, so
-expect it to take a few minutes beyond the image build itself.
+[deploy_space] pushed. The image serves the pinned GGUF from its serving config, so no Space
+variables are needed (the model repo is public: no HF_TOKEN at runtime, per O5 AC-7). A build
+will start automatically; first boot also downloads the model, so expect it to take a few
+minutes beyond the image build itself.
 
 Once it reports "Running":
   uv run python scripts/smoke_deployed.py --url https://${SPACE_ID//\//-}.hf.space

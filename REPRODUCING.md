@@ -155,14 +155,13 @@ That guarantee has real limits, and the project does not pretend otherwise:
 
 ## Provenance — every published number, traced
 
-| Number | Config | Command | W&B run |
-|---|---|---|---|
-| Ch1 tokens/sec by quantization mode, KV-cache speedup | `ch1_architecture/configs/benchmark_full.yaml` | `python -m ch1_architecture.benchmark --config ...` | *(pending — A5 full run)* |
-| Ch1 perplexity by quantization mode | `ch1_architecture/configs/benchmark_full.yaml` | `python -m ch1_architecture.benchmark --config ...` | *(pending — A5 full run)* |
-| Ch2 schema-validity / bug-catch — fine-tuned | `ch2_adaptation/configs/full.yaml` + `eval_full.yaml` | `python -m ch2_adaptation.finetune` then `evaluate.py` | *(pending — C4/C5 full run)* |
-| Ch2 schema-validity / bug-catch — base (zero-shot) | `ch2_adaptation/configs/baseline_full.yaml` | `python -m ch2_adaptation.baseline --config ...` | *(pending — C1 full run)* |
-| Ch2 schema-validity / bug-catch — frontier (3-shot) | `ch2_adaptation/configs/baseline_full.yaml` | `python -m ch2_adaptation.baseline --config ...` | *(pending — C1 full run)* |
-| Ch3 p50/p99 latency, throughput | `ch3_operation/configs/export_full.yaml` (model) | `scripts/benchmark_serving.py <space-url>` | *(pending — O5 deploy)* |
+| Number | Config | Command | Result file | W&B run | Model artifact |
+|---|---|---|---|---|---|
+| Ch1 tokens/sec by quantization mode, KV-cache speedup, perplexity | `ch1_architecture/configs/benchmark_full.yaml` (checkpoint from `full.yaml` @ `c4335d3`) | `python -m ch1_architecture.benchmark --config ...` | `eval/results/ch1_benchmark.json` (A100) · `ch1_benchmark_cpu.json` (CPU) | [`9gxft2pt`](https://wandb.ai/rahulyk09-iit-bombay/ch1-architecture/runs/9gxft2pt) (training) | local checkpoint, not published (toy model) |
+| Ch2 schema-validity / bug-catch — fine-tuned | `ch2_adaptation/configs/full.yaml` + `eval_full.yaml` | `python -m ch2_adaptation.finetune` then `python -m ch2_adaptation.evaluate` | `eval/results/finetuned.json` | [`5wwfz38t`](https://wandb.ai/rahulyk09-iit-bombay/ch2-adaptation/runs/5wwfz38t) | adapter `rkg209/qwen2.5-coder-1.5b-java-review-qlora` @ `f8b1cf764d630fcad9a197750624e66b0266fd50` (private) |
+| Ch2 schema-validity / bug-catch — base (zero-shot) and frontier (3-shot) | `ch2_adaptation/configs/baseline_holdout.yaml` | `python -m ch2_adaptation.baseline --config ...` | `eval/results/baselines_holdout.json` | — (baseline logs nothing to W&B) | `Qwen/Qwen2.5-Coder-1.5B-Instruct` / the Gemini model named in the config |
+| Ch3 GGUF schema-validity / bug-catch | `ch3_operation/configs/export_full.yaml` + `eval_full.yaml` | `scripts/merge_adapter.py` → `export_gguf.py` → `quantize_gguf.py`, then `python -m ch3_operation.evaluate` | `eval/results/gguf.json` | — | GGUF `rkg209/qwen2.5-coder-1.5b-java-review-gguf` @ `a2133f6a226bc081a7ac29036d2d7fb681e6bfd6` |
+| Ch3 p50/p99 latency, throughput | `ch3_operation/configs/full.yaml` (serving) + `benchmark_container.yaml` | `scripts/benchmark_serving.py http://localhost:8000` against the image under `--cpus=2 --memory=4g` | `eval/results/serving_metrics.json` | — | same GGUF, same revision (the image fetches it from `full.yaml`'s pin) |
 
 This table stays in sync with `specs/STATUS.md`'s own W&B column, which tracks state at
 the spec level rather than the number level — check both if one looks stale.
@@ -171,7 +170,26 @@ the spec level rather than the number level — check both if one looks stale.
 
 The fine-tuned adapter and the exported GGUF are pulled from HF Hub **by repo ID plus a
 pinned revision SHA**, never `main` — "the latest adapter" is a moving target that makes
-last week's eval table describe a different model than the one currently deployed. Until
-the adapter from C4/C5 is published, `ch3_operation`'s config points at a bare repo ID
-with no revision pin; that is a to-do, resolved the same session the adapter is first
-published, not a permanent exception.
+last week's eval table describe a different model than the one currently deployed.
+
+| Artifact | Hub repo | Pinned revision | File sha256 | Pinned in |
+|---|---|---|---|---|
+| QLoRA adapter (C4 job 401897) | `rkg209/qwen2.5-coder-1.5b-java-review-qlora` (private) | `f8b1cf764d630fcad9a197750624e66b0266fd50` | `adapter_model.safetensors` `ace891428d96be785b3d0a8be07205a1fa6df34d33712e74ce4e5c5944a9cc7a` | `ch3_operation/configs/export_full.yaml` (`adapter_repo`/`adapter_revision`) |
+| Q4_K_M GGUF (O1) | `rkg209/qwen2.5-coder-1.5b-java-review-gguf` (public) | `a2133f6a226bc081a7ac29036d2d7fb681e6bfd6` | `model-Q4_K_M.gguf` `a5eef204db583afc19afdf2f8a64e314c8705064b060ee787470b0bf4d7513f6` | `ch3_operation/configs/full.yaml` (`model_repo`/`model_file`/`model_revision`/`model_sha256`) |
+
+The pin is enforced, not just written down. The configs reject any revision that is not a
+full 40-hex commit SHA, so `main` and short SHAs fail at load time. The container
+(`ch3_operation.fetch_model`, called by `docker/entrypoint.sh`) downloads from
+`/resolve/<sha>/`, not `/resolve/main/`, and deletes the file if its sha256 does not match.
+Pointing the image at a different model with `MODEL_REPO` also requires `MODEL_FILE` and
+`MODEL_REVISION`: an override can change the model but cannot unpin it.
+
+The same adapter hash is recorded in `eval/results/finetuned.json` (`adapter_sha256`), so
+the fine-tuned score is tied to the Hub copy by content as well as by revision. To check
+that a Hub revision still serves the published bytes without downloading 986 MB, send a
+HEAD request to the resolve URL. `x-repo-commit` should equal the revision and
+`x-linked-etag` the sha256 above:
+
+```bash
+curl -sI https://huggingface.co/rkg209/qwen2.5-coder-1.5b-java-review-gguf/resolve/a2133f6a226bc081a7ac29036d2d7fb681e6bfd6/model-Q4_K_M.gguf | grep -iE "x-repo-commit|x-linked-etag"
+```

@@ -12,3 +12,8 @@ port: 8000
 metrics_window: 100
 max_request_bytes: 32768
 api_version: "v1"
+# Served from the local fixture, so there is nothing to fetch from HF Hub.
+model_repo: null
+model_file: null
+model_revision: null
+model_sha256: null

@@ -44,6 +44,10 @@ def _serve_config_for_eval(config: EvalConfig) -> ServeConfig:
         metrics_window=1,
         max_request_bytes=32768,
         api_version="v1",
+        model_repo=None,
+        model_file=None,
+        model_revision=None,
+        model_sha256=None,
     )
 
 

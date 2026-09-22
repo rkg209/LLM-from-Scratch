@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **State** | building |
+| **State** | done (2026-09-22 audit; see specs/STATUS.md) |
 | **Depends on** | O1 |
 | **Requirements** | FR-22, CON-7, NFR-20 |
 | **W&B run** | — |

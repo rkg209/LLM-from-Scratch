@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **State** | building |
+| **State** | done (2026-09-22 audit; see specs/STATUS.md) |
 | **Depends on** | A5, C5 |
 | **Requirements** | FR-29, BG-1 |
 | **W&B run** | — |

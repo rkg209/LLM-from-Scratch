@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **State** | building |
+| **State** | done except AC-4 — blocked-by-cost, no live HF Spaces link (2026-09-22; see specs/STATUS.md) |
 | **Depends on** | A5, C5, O5 |
 | **Requirements** | FR-27, BG-1, NFR-7 |
 | **W&B run** | — |

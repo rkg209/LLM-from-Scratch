@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **State** | building |
+| **State** | done except AC-6/AC-7 — blocked-by-cost, no HF Spaces deployment (2026-09-22; see specs/STATUS.md) |
 | **Depends on** | O2 |
 | **Requirements** | FR-23, NFR-3, NFR-17 |
 | **W&B run** | — |

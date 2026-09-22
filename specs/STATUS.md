@@ -24,10 +24,13 @@ Spec IDs (`F1`, `C1`, `A1`, …) are unchanged and are what the slash commands t
 
 ## Progress
 
-**16 of 24 done (66.7%)** — all foundation, plus O0, A1, A2, X2 (reproducibility), C1, C2, C3, C4, C5, and now A3, A4, A5 (Chapter 1's full run, 2026-09-18).
-C3's training data was generated on 2026-09-16/17 (`d78179f`): 300 requested, 226 kept (203 train /
-23 val), 13 dropped by the line-label check, $0.00 on gemini-3.5-flash-lite's free tier (500 req/day).
-Next on the critical path: C4, the real QLoRA fine-tune on the GPU server.
+**20 of 24 done (83.3%)** as of 2026-09-22: all foundation (F1–F4), all of Chapter 2 (C1–C5),
+all of Chapter 1 (A1–A5), O0, O1, O2, O4, X2 and X3. **Two more are done except one criterion
+each** — O3 (AC-6/7) and X1 (AC-4) — and both of those criteria need a live HF Spaces
+deployment. That is also what blocks **O5** (`blocked-by-cost`: HF put Docker Spaces behind a
+paid plan in 2026, and free 512 MB hosts cannot hold the 1.15+ GiB service). **O6** is a
+declared stretch cut-line, still `draft`. Nothing on the critical path is left to execute; the
+remaining gap is hosting money, not work.
 C4 in progress on PARAM Rudra (2026-09-17): environment working, 4-bit path verified (0.488% trainable),
 step sweep showed 1000 steps overfits the 203 records, so `max_steps` is now 125 (`ab42114`). Headline adapter
 re-trained from the committed config (job 401897, val loss 0.679), W&B synced (`5wwfz38t`), adapter downloaded and
@@ -128,9 +131,9 @@ table — wait on the full-config GPU run, same as C4/C5/O1. The smoke benchmark
 |---|---|---|---|---|---|
 | 10 | O0 | serving-thin-slice | done | F3 | — |
 | 11 | O1 | merge-and-gguf-quantize | done (T1–T7 done: Q4_K_M validity 1.00 / catch 0.80 vs adapter 0.975 / 0.80, n=40, `0f3b2dd`; backend chat-template fix `483cb30`. GGUF public on HF Hub `rkg209/qwen2.5-coder-1.5b-java-review-gguf` @ `a2133f6`) | C5, O0 | — |
-| 12 | O2 | fastapi-serving-guardrails | building (code + tests done, verified against a live smoke server) | O1 | — |
-| 13 | O3 | monitoring | building (code + tests done, verified against a live smoke server) | O2 | — |
-| 14 | O4 | containerize | building (build-verified: `docker buildx build` + `docker run` + `DOCKER=1 pytest` all pass against `tiny.gguf`; two real bugs found and fixed, see progress_report.md) | O3 | — |
+| 12 | O2 | fastapi-serving-guardrails | done (2026-09-22 audit: all 9 ACs covered by `test_validator.py` / `test_api.py` / `test_errors.py` — 422 `VALIDATION_FAILED`/`SCHEMA_VIOLATION` with Pydantic detail, exactly two parse attempts, 413 over 32 KB, 503 `MODEL_NOT_READY`, `request_id` on every response; served the real GGUF at schema-validity 1.0 in O5) | O1 | — |
+| 13 | O3 | monitoring | done except AC-6/AC-7, blocked-by-cost like O5 (2026-09-22): AC-1–5 and AC-8 met and tested; live gauge `review_schema_validity_rate` 1.0 over 91 real requests. AC-6/7 require HF Spaces, which is paywalled, so p50 2.16 s / p99 3.68 s / 0.44 req/s were measured on the production image under `--cpus=2 --memory=4g` instead, and the NFR-3 1 req/s miss is reported with its cause | O2 | — |
+| 14 | O4 | containerize | done (2026-09-22 audit: clean-checkout build + pinned first-boot download + `/health` + `/metrics` + schema-valid `/review` verified locally; `linux/amd64` build green in the Docker CI job at `5e12262`; CPU-only slim final stage, model not baked in; two real bugs found and fixed, see progress_report.md) | O3 | — |
 | 15 | O5 | deploy | blocked-by-cost: HF Docker Spaces paywalled (402), 512 MB free hosts too small for 1.15 GiB. Measured instead: prod image under --cpus=2 --memory=4g, p50 2.16 s / p99 3.68 s / 0.44 req/s / 0 errors after the n_threads 4→2 fix (2026-09-22; was 2.97 / 4.64 / 0.32 in `567c05a`); still misses NFR-3 1 req/s, Q4_0 rejected on quality; temporary demos via cloudflared. No permanent URL | O4 | — |
 | 16 | O6 | in-browser-webllm *(stretch)* | draft | O5 | — |
 
@@ -148,9 +151,9 @@ table — wait on the full-config GPU run, same as C4/C5/O1. The smoke benchmark
 
 | # | ID | Spec | State | Depends on | W&B run |
 |---|---|---|---|---|---|
-| 22 | X1 | readme-and-architecture-diagram | building (T1/T3/T4/T5 done — diagram, results section, cost, honest framing; T2 live-demo link and T6 number slots pending O5 deploy / A5+C5 full runs) | A5, C5, O5 | — |
+| 22 | X1 | readme-and-architecture-diagram | done except AC-4, blocked-by-cost like O5 (2026-09-22): diagram, head-to-head table, Ch1 plots, per-chapter summaries, $0.00 cost statement, honest framing (frontier wins shown as losses) and results-before-setup all in the README; AC-4 wants a live HF Spaces link, which is paywalled — the README carries a real worked example, the public model link and the one-command Docker run instead | A5, C5, O5 | — |
 | 23 | X2 | reproducibility | done (AC-2 through AC-7 verified this session; AC-1 — handing `REPRODUCING.md` to a real second person — cannot be self-certified in a session, noted as such) | F2 | — |
-| 24 | X3 | interview-defense-notes | building (all three notes + docs/README.md index written and linked; AC-1/AC-3's cited measured numbers pending A4/A5 full runs, AC-2's frontier-win paragraph pending C5) | A5, C5 | — |
+| 24 | X3 | interview-defense-notes | done (2026-09-22 audit: all three notes cite this project's own numbers — KV-cache 1.03x A100 / 4.45x CPU, perplexity 61.45 / 61.70 / 84.11 by precision, head-to-head 0.97 vs 1.00 and 0.80 vs 0.82 with the frontier win stated — and each has a "What I got wrong" section) | A5, C5 | — |
 
 ## Cut-lines
 

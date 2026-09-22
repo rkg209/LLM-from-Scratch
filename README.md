@@ -232,19 +232,34 @@ At n = 40 the one-record difference is noise, so read it as "no measured loss", 
 <!-- SERVING_METRICS_START -->
 | Metric | Value |
 |---|---|
-| p50 latency | **2.97 s** |
-| p99 latency | **4.64 s** |
-| Throughput (sequential, one user) | **0.32 req/s** |
+| p50 latency | **2.16 s** |
+| p99 latency | **3.68 s** |
+| Throughput (sequential, one user) | **0.44 req/s** |
 | Errors | 0 / 30 |
-| Cold start (image start → download + sha256 check → ready) | 189 s |
-| Memory in use | 1.15 GiB |
+| Cold start (image start → pinned download + sha256 check → ready) | 138 s |
+| Memory in use | 1.25 GiB |
 
-Measured 2026-09-18 20:46 UTC by `scripts/benchmark_serving.py` (30 requests after one warm-up),
+Measured 2026-09-22 03:20 UTC by `scripts/benchmark_serving.py` (30 requests after one warm-up),
 against the **production image** run with `docker run --cpus=2 --memory=4g`, the size of a
 free CPU tier. That is a laptop (Apple M4, native arm64 build), not a hosted deployment; there
-is no hosted deployment (see [Live demo](#live-demo)). Throughput misses NFR-3's 1 req/s target
-by about 3×. Each review is a full autoregressive generation of a JSON object on 2 CPU cores,
-and at this model size that takes a few seconds, not one. Raw numbers: `eval/results/serving_metrics.json`.
+is no hosted deployment (see [Live demo](#live-demo)). The table is the median of three
+back-to-back runs. Throughput ranged **0.32–0.51 req/s** across them, because the laptop had
+background load. Raw numbers: `eval/results/serving_metrics.json`.
+
+**Throughput still misses NFR-3's 1 req/s target, by about 2×, and it is reported as a miss.**
+Each review generates ~78 tokens of JSON. On 2 cores this model decodes ~30 tokens/s, so a
+request takes 2–3 s. 1 req/s would need ~80 tokens/s, which is more than this laptop's M4
+reaches for this model with *no* CPU limit (~56 tokens/s). What was tried:
+
+| Change | Effect under `--cpus=2` | Kept? |
+|---|---|---|
+| `n_threads` 4 → 2 (match the CPU quota) | ~+40% throughput in an interleaved A/B (median 2.7–3.4 s vs 4.0–4.4 s per request). 4 threads on 2 CPUs spin-wait and get throttled. | **Yes.** It was a config bug. The 2026-09-18 figure was 0.32 req/s with 4 threads. |
+| Q4_0 instead of Q4_K_M (faster repacked CPU kernels) | ~16% faster (2.08 s vs 2.47 s), but holdout scores dropped to validity 0.975 / bug-catch **0.75** (vs 1.00 / 0.80) | **No.** Slower but more accurate wins. |
+| Prompt-lookup speculative decoding | ~10× *slower* (26 s per request) | No |
+
+Reaching 1 req/s would take a smaller model (e.g. the 0.5B Coder, which needs a new fine-tune and
+will probably catch fewer bugs), shorter reviews (a retrain), or more cores (money). Serving
+concurrent requests would raise aggregate throughput, but NFR-3 is defined for a single user.
 <!-- SERVING_METRICS_END -->
 
 ## What this cost

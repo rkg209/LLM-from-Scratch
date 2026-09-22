@@ -131,7 +131,7 @@ table — wait on the full-config GPU run, same as C4/C5/O1. The smoke benchmark
 | 12 | O2 | fastapi-serving-guardrails | building (code + tests done, verified against a live smoke server) | O1 | — |
 | 13 | O3 | monitoring | building (code + tests done, verified against a live smoke server) | O2 | — |
 | 14 | O4 | containerize | building (build-verified: `docker buildx build` + `docker run` + `DOCKER=1 pytest` all pass against `tiny.gguf`; two real bugs found and fixed, see progress_report.md) | O3 | — |
-| 15 | O5 | deploy | blocked-by-cost: HF Docker Spaces paywalled (402), 512 MB free hosts too small for 1.15 GiB. Measured instead: prod image under --cpus=2 --memory=4g, p50 2.97 s / p99 4.64 s / 0.32 req/s / 0 errors (`567c05a`); temporary demos via cloudflared. No permanent URL | O4 | — |
+| 15 | O5 | deploy | blocked-by-cost: HF Docker Spaces paywalled (402), 512 MB free hosts too small for 1.15 GiB. Measured instead: prod image under --cpus=2 --memory=4g, p50 2.16 s / p99 3.68 s / 0.44 req/s / 0 errors after the n_threads 4→2 fix (2026-09-22; was 2.97 / 4.64 / 0.32 in `567c05a`); still misses NFR-3 1 req/s, Q4_0 rejected on quality; temporary demos via cloudflared. No permanent URL | O4 | — |
 | 16 | O6 | in-browser-webllm *(stretch)* | draft | O5 | — |
 
 ## Chapter 1 — Architecture *(parallel track — no critical-path spec depends on it)*
